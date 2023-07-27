@@ -1,0 +1,13 @@
+# Target labels
+ project_libristnet
+# Source files and their labels
+/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/project_libristnet
+/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/project_libristnet.rule
+/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/project_libristnet-complete.rule
+/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-build.rule
+/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-configure.rule
+/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-download.rule
+/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-install.rule
+/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-mkdir.rule
+/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-patch.rule
+/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-update.rule

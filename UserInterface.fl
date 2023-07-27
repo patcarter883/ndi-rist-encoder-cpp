@@ -1,0 +1,84 @@
+# data file for the Fltk User Interface Designer (fluid)
+version 1.0400
+header_name {.h}
+code_name {.cxx}
+snap {
+  ver 1
+  current_suite FLTK
+  current_preset 0
+}
+class UserInterface {open
+} {
+  Function {UserInterface()} {open
+  } {
+    Fl_Window mainWindow {
+      label {NDI RIST Encoder} open
+      xywh {303 468 1172 421} type Double visible
+    } {
+      Fl_Group inputGroup {
+        label Input open
+        xywh {25 25 258 160}
+      } {
+        Fl_Button previewSourceBtn {
+          label {Preview Source}
+          xywh {55 83 180 24}
+        }
+        Fl_Choice ndiSourceSelect {
+          label {NDI Source}
+          xywh {119 53 140 22} down_box BORDER_BOX
+        } {}
+      }
+      Fl_Group encodeGroup {
+        label Encode open
+        xywh {361 25 250 192}
+      } {
+        Fl_Choice codecSelect {
+          label Codec open
+          xywh {440 50 92 22} down_box BORDER_BOX
+        } {
+          MenuItem h264CodecChoice {
+            label H264
+            xywh {0 0 100 20}
+          }
+          MenuItem h265CodecChoice {
+            label H265
+            xywh {0 0 100 20}
+          }
+          MenuItem av1CodecChoice {
+            label AV1
+            xywh {0 0 100 20}
+          }
+        }
+      }
+      Fl_Group outputGroup {
+        label Output open
+        xywh {738 29 266 184}
+      } {
+        Fl_Input ristAddressInput {
+          label Address
+          xywh {786 56 218 22}
+        }
+        Fl_Input ristPortInput {
+          label Port
+          xywh {786 86 92 22}
+        }
+        Fl_Input ristBufferInput {
+          label Buffer
+          xywh {786 116 92 22}
+        }
+        Fl_Input ristBandwidthInput {
+          label Bandwidth
+          xywh {786 146 92 22}
+        }
+      }
+      Fl_Text_Display logDisplay {
+        label Log
+        xywh {25 242 1132 164}
+      }
+    }
+  }
+  Function {show(int argc, char **argv)} {open
+  } {
+    code {mainWindow->show(argc, argv);} {}
+  }
+}

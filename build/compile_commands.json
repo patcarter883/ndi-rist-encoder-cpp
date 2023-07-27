@@ -1,0 +1,26 @@
+[
+{
+  "directory": "/mnt/data/projects/recast/ndi-rist-encoder/build",
+  "command": "/usr/bin/c++  -I/mnt/data/projects/recast/ndi-rist-encoder/ristwrap/rist/include -I/mnt/data/projects/recast/ndi-rist-encoder/ristwrap/rist/include/librist -I/mnt/data/projects/recast/ndi-rist-encoder/ristwrap/rist/build/include/librist -I/mnt/data/projects/recast/fltk/build/Debug -I/mnt/data/projects/recast/fltk -I/mnt/data/projects/recast/ndi-rist-encoder/ristwrap -I/mnt/data/projects/recast/ndi-rist-encoder/ristwrap/rist/inc -I/mnt/data/projects/recast/ndi-rist-encoder/fmt/include -isystem /usr/include/gstreamer-1.0 -isystem /usr/include/glib-2.0 -isystem /usr/lib/glib-2.0/include -isystem /usr/include/sysprof-4 -isystem /usr/include/orc-0.4 -isystem /usr/include/libmount -isystem /usr/include/blkid -g -std=gnu++20 -pthread -o CMakeFiles/ndi_rist_encoder.dir/ndi-rist-encoder.cpp.o -c /mnt/data/projects/recast/ndi-rist-encoder/ndi-rist-encoder.cpp",
+  "file": "/mnt/data/projects/recast/ndi-rist-encoder/ndi-rist-encoder.cpp",
+  "output": "CMakeFiles/ndi_rist_encoder.dir/ndi-rist-encoder.cpp.o"
+},
+{
+  "directory": "/mnt/data/projects/recast/ndi-rist-encoder/build",
+  "command": "/usr/bin/cc  -I/mnt/data/projects/recast/ndi-rist-encoder/ristwrap/rist/include -I/mnt/data/projects/recast/ndi-rist-encoder/ristwrap/rist/include/librist -I/mnt/data/projects/recast/ndi-rist-encoder/ristwrap/rist/build/include/librist -I/mnt/data/projects/recast/fltk/build/Debug -I/mnt/data/projects/recast/fltk -I/mnt/data/projects/recast/ndi-rist-encoder/ristwrap -I/mnt/data/projects/recast/ndi-rist-encoder/ristwrap/rist/inc -I/mnt/data/projects/recast/ndi-rist-encoder/fmt/include -isystem /usr/include/gstreamer-1.0 -isystem /usr/include/glib-2.0 -isystem /usr/lib/glib-2.0/include -isystem /usr/include/sysprof-4 -isystem /usr/include/orc-0.4 -isystem /usr/include/libmount -isystem /usr/include/blkid -g -std=gnu99 -pthread -o CMakeFiles/ndi_rist_encoder.dir/ristsender.c.o -c /mnt/data/projects/recast/ndi-rist-encoder/ristsender.c",
+  "file": "/mnt/data/projects/recast/ndi-rist-encoder/ristsender.c",
+  "output": "CMakeFiles/ndi_rist_encoder.dir/ristsender.c.o"
+},
+{
+  "directory": "/mnt/data/projects/recast/ndi-rist-encoder/build/fmt",
+  "command": "/usr/bin/c++  -I/mnt/data/projects/recast/ndi-rist-encoder/fmt/include -g -std=gnu++20 -o CMakeFiles/fmt.dir/src/format.cc.o -c /mnt/data/projects/recast/ndi-rist-encoder/fmt/src/format.cc",
+  "file": "/mnt/data/projects/recast/ndi-rist-encoder/fmt/src/format.cc",
+  "output": "fmt/CMakeFiles/fmt.dir/src/format.cc.o"
+},
+{
+  "directory": "/mnt/data/projects/recast/ndi-rist-encoder/build/fmt",
+  "command": "/usr/bin/c++  -I/mnt/data/projects/recast/ndi-rist-encoder/fmt/include -g -std=gnu++20 -o CMakeFiles/fmt.dir/src/os.cc.o -c /mnt/data/projects/recast/ndi-rist-encoder/fmt/src/os.cc",
+  "file": "/mnt/data/projects/recast/ndi-rist-encoder/fmt/src/os.cc",
+  "output": "fmt/CMakeFiles/fmt.dir/src/os.cc.o"
+}
+]

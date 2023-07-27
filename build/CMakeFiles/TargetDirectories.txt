@@ -1,0 +1,15 @@
+/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/project_libristnet.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/ndi_rist_encoder.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/edit_cache.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/rebuild_cache.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/list_install_components.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/install.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/install/local.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/install/strip.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/fmt/CMakeFiles/fmt.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/fmt/CMakeFiles/edit_cache.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/fmt/CMakeFiles/rebuild_cache.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/fmt/CMakeFiles/list_install_components.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/fmt/CMakeFiles/install.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/fmt/CMakeFiles/install/local.dir
+/mnt/data/projects/recast/ndi-rist-encoder/build/fmt/CMakeFiles/install/strip.dir
