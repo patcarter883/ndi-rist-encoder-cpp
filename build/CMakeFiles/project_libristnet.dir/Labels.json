@@ -2,34 +2,34 @@
 	"sources" : 
 	[
 		{
-			"file" : "/home/patcarter/code/ndi-rist-encoder-cpp/build/CMakeFiles/project_libristnet"
+			"file" : "/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/project_libristnet"
 		},
 		{
-			"file" : "/home/patcarter/code/ndi-rist-encoder-cpp/build/CMakeFiles/project_libristnet.rule"
+			"file" : "/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/project_libristnet.rule"
 		},
 		{
-			"file" : "/home/patcarter/code/ndi-rist-encoder-cpp/build/CMakeFiles/project_libristnet-complete.rule"
+			"file" : "/mnt/data/projects/recast/ndi-rist-encoder/build/CMakeFiles/project_libristnet-complete.rule"
 		},
 		{
-			"file" : "/home/patcarter/code/ndi-rist-encoder-cpp/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-build.rule"
+			"file" : "/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-build.rule"
 		},
 		{
-			"file" : "/home/patcarter/code/ndi-rist-encoder-cpp/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-configure.rule"
+			"file" : "/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-configure.rule"
 		},
 		{
-			"file" : "/home/patcarter/code/ndi-rist-encoder-cpp/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-download.rule"
+			"file" : "/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-download.rule"
 		},
 		{
-			"file" : "/home/patcarter/code/ndi-rist-encoder-cpp/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-install.rule"
+			"file" : "/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-install.rule"
 		},
 		{
-			"file" : "/home/patcarter/code/ndi-rist-encoder-cpp/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-mkdir.rule"
+			"file" : "/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-mkdir.rule"
 		},
 		{
-			"file" : "/home/patcarter/code/ndi-rist-encoder-cpp/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-patch.rule"
+			"file" : "/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-patch.rule"
 		},
 		{
-			"file" : "/home/patcarter/code/ndi-rist-encoder-cpp/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-update.rule"
+			"file" : "/mnt/data/projects/recast/ndi-rist-encoder/build/project_libristnet-prefix/src/project_libristnet-stamp/project_libristnet-update.rule"
 		}
 	],
 	"target" : 

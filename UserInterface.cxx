@@ -17,6 +17,7 @@ UserInterface::UserInterface() {
     mainWindow->user_data((void*)(this));
     { inputGroup = new Fl_Group(25, 25, 258, 160, "Input");
       { previewSourceBtn = new Fl_Button(55, 83, 180, 24, "Preview Source");
+        previewSourceBtn->callback((Fl_Callback*)preview_cb);
       } // Fl_Button* previewSourceBtn
       { ndiSourceSelect = new Fl_Choice(119, 53, 140, 22, "NDI Source");
         ndiSourceSelect->down_box(FL_BORDER_BOX);

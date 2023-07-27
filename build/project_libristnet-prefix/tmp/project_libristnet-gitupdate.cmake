@@ -5,8 +5,8 @@ cmake_minimum_required(VERSION 3.5)
 
 function(get_hash_for_ref ref out_var err_var)
   execute_process(
-    COMMAND "/usr/bin/git" rev-parse "${ref}^0"
-    WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+    COMMAND "/usr/bin/git" --git-dir=.git rev-parse "${ref}^0"
+    WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
     RESULT_VARIABLE error_code
     OUTPUT_VARIABLE ref_hash
     ERROR_VARIABLE error_msg
@@ -27,8 +27,8 @@ endif()
 
 
 execute_process(
-  COMMAND "/usr/bin/git" show-ref "master"
-  WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+  COMMAND "/usr/bin/git" --git-dir=.git show-ref "master"
+  WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
   OUTPUT_VARIABLE show_ref_output
 )
 if(show_ref_output MATCHES "^[a-z0-9]+[ \\t]+refs/remotes/")
@@ -95,8 +95,8 @@ endif()
 if(fetch_required)
   message(VERBOSE "Fetching latest from the remote origin")
   execute_process(
-    COMMAND "/usr/bin/git" fetch --tags --force "origin"
-    WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+    COMMAND "/usr/bin/git" --git-dir=.git fetch --tags --force "origin"
+    WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
     COMMAND_ERROR_IS_FATAL ANY
   )
 endif()
@@ -112,8 +112,8 @@ if(git_update_strategy MATCHES "^REBASE(_CHECKOUT)?$")
   # We can't if we aren't already on a branch and we shouldn't if that local
   # branch isn't tracking the one we want to checkout.
   execute_process(
-    COMMAND "/usr/bin/git" symbolic-ref -q HEAD
-    WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+    COMMAND "/usr/bin/git" --git-dir=.git symbolic-ref -q HEAD
+    WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
     OUTPUT_VARIABLE current_branch
     OUTPUT_STRIP_TRAILING_WHITESPACE
     # Don't test for an error. If this isn't a branch, we get a non-zero error
@@ -128,8 +128,8 @@ if(git_update_strategy MATCHES "^REBASE(_CHECKOUT)?$")
 
   else()
     execute_process(
-      COMMAND "/usr/bin/git" for-each-ref "--format='%(upstream:short)'" "${current_branch}"
-      WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+      COMMAND "/usr/bin/git" --git-dir=.git for-each-ref "--format=%(upstream:short)" "${current_branch}"
+      WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
       OUTPUT_VARIABLE upstream_branch
       OUTPUT_STRIP_TRAILING_WHITESPACE
       COMMAND_ERROR_IS_FATAL ANY  # There is no error if no upstream is set
@@ -151,8 +151,8 @@ endif()
 
 # Check if stash is needed
 execute_process(
-  COMMAND "/usr/bin/git" status --porcelain
-  WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+  COMMAND "/usr/bin/git" --git-dir=.git status --porcelain
+  WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
   RESULT_VARIABLE error_code
   OUTPUT_VARIABLE repo_status
 )
@@ -165,22 +165,22 @@ string(LENGTH "${repo_status}" need_stash)
 # rebase or checkout without losing those changes permanently
 if(need_stash)
   execute_process(
-    COMMAND "/usr/bin/git" stash save --quiet;--include-untracked
-    WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+    COMMAND "/usr/bin/git" --git-dir=.git stash save --quiet;--include-untracked
+    WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
     COMMAND_ERROR_IS_FATAL ANY
   )
 endif()
 
 if(git_update_strategy STREQUAL "CHECKOUT")
   execute_process(
-    COMMAND "/usr/bin/git" checkout "${checkout_name}"
-    WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+    COMMAND "/usr/bin/git" --git-dir=.git checkout "${checkout_name}"
+    WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
     COMMAND_ERROR_IS_FATAL ANY
   )
 else()
   execute_process(
-    COMMAND "/usr/bin/git" rebase "${checkout_name}"
-    WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+    COMMAND "/usr/bin/git" --git-dir=.git rebase "${checkout_name}"
+    WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
     RESULT_VARIABLE error_code
     OUTPUT_VARIABLE rebase_output
     ERROR_VARIABLE  rebase_output
@@ -188,19 +188,19 @@ else()
   if(error_code)
     # Rebase failed, undo the rebase attempt before continuing
     execute_process(
-      COMMAND "/usr/bin/git" rebase --abort
-      WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+      COMMAND "/usr/bin/git" --git-dir=.git rebase --abort
+      WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
     )
 
     if(NOT git_update_strategy STREQUAL "REBASE_CHECKOUT")
       # Not allowed to do a checkout as a fallback, so cannot proceed
       if(need_stash)
         execute_process(
-          COMMAND "/usr/bin/git" stash pop --index --quiet
-          WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+          COMMAND "/usr/bin/git" --git-dir=.git stash pop --index --quiet
+          WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
           )
       endif()
-      message(FATAL_ERROR "\nFailed to rebase in: '/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap'."
+      message(FATAL_ERROR "\nFailed to rebase in: '/mnt/data/projects/recast/ndi-rist-encoder/ristwrap'."
                           "\nOutput from the attempted rebase follows:"
                           "\n${rebase_output}"
                           "\n\nYou will have to resolve the conflicts manually")
@@ -218,16 +218,16 @@ else()
     message(WARNING "Rebase failed, output has been saved to ${error_log_file}"
                     "\nFalling back to checkout, previous commit tagged as ${tag_name}")
     execute_process(
-      COMMAND "/usr/bin/git" tag -a
+      COMMAND "/usr/bin/git" --git-dir=.git tag -a
               -m "ExternalProject attempting to move from here to ${checkout_name}"
               ${tag_name}
-      WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+      WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
       COMMAND_ERROR_IS_FATAL ANY
     )
 
     execute_process(
-      COMMAND "/usr/bin/git" checkout "${checkout_name}"
-      WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+      COMMAND "/usr/bin/git" --git-dir=.git checkout "${checkout_name}"
+      WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
       COMMAND_ERROR_IS_FATAL ANY
     )
   endif()
@@ -236,32 +236,32 @@ endif()
 if(need_stash)
   # Put back the stashed changes
   execute_process(
-    COMMAND "/usr/bin/git" stash pop --index --quiet
-    WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+    COMMAND "/usr/bin/git" --git-dir=.git stash pop --index --quiet
+    WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
     RESULT_VARIABLE error_code
     )
   if(error_code)
     # Stash pop --index failed: Try again dropping the index
     execute_process(
-      COMMAND "/usr/bin/git" reset --hard --quiet
-      WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+      COMMAND "/usr/bin/git" --git-dir=.git reset --hard --quiet
+      WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
     )
     execute_process(
-      COMMAND "/usr/bin/git" stash pop --quiet
-      WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+      COMMAND "/usr/bin/git" --git-dir=.git stash pop --quiet
+      WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
       RESULT_VARIABLE error_code
     )
     if(error_code)
       # Stash pop failed: Restore previous state.
       execute_process(
-        COMMAND "/usr/bin/git" reset --hard --quiet ${head_sha}
-        WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+        COMMAND "/usr/bin/git" --git-dir=.git reset --hard --quiet ${head_sha}
+        WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
       )
       execute_process(
-        COMMAND "/usr/bin/git" stash pop --index --quiet
-        WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+        COMMAND "/usr/bin/git" --git-dir=.git stash pop --index --quiet
+        WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
       )
-      message(FATAL_ERROR "\nFailed to unstash changes in: '/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap'."
+      message(FATAL_ERROR "\nFailed to unstash changes in: '/mnt/data/projects/recast/ndi-rist-encoder/ristwrap'."
                           "\nYou will have to resolve the conflicts manually")
     endif()
   endif()
@@ -270,8 +270,8 @@ endif()
 set(init_submodules "TRUE")
 if(init_submodules)
   execute_process(
-    COMMAND "/usr/bin/git" submodule update --recursive --init 
-    WORKING_DIRECTORY "/home/patcarter/code/ndi-rist-encoder-cpp/ristwrap"
+    COMMAND "/usr/bin/git" --git-dir=.git submodule update --recursive --init 
+    WORKING_DIRECTORY "/mnt/data/projects/recast/ndi-rist-encoder/ristwrap"
     COMMAND_ERROR_IS_FATAL ANY
   )
 endif()

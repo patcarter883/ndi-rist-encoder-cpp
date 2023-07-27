@@ -13,7 +13,7 @@ class UserInterface {open
   } {
     Fl_Window mainWindow {
       label {NDI RIST Encoder} open
-      xywh {303 468 1172 421} type Double visible
+      xywh {536 425 1172 421} type Double visible
     } {
       Fl_Group inputGroup {
         label Input open
@@ -21,6 +21,7 @@ class UserInterface {open
       } {
         Fl_Button previewSourceBtn {
           label {Preview Source}
+          callback preview_cb selected
           xywh {55 83 180 24}
         }
         Fl_Choice ndiSourceSelect {
