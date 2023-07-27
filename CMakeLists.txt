@@ -36,6 +36,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/include/)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/include/librist)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/build/include/librist)
 
+set(NDI_INCLUDE_DIR ./ndi-headers)
 find_package(NDI REQUIRED)
 
 find_package(PkgConfig REQUIRED)
