@@ -21,8 +21,8 @@ class UserInterface {open
       } {
         Fl_Button previewSourceBtn {
           label {Preview Source}
-          callback preview_cb selected
-          xywh {55 83 180 24}
+          callback preview_cb
+          xywh {79 83 180 24}
         }
         Fl_Choice ndiSourceSelect {
           label {NDI Source}
@@ -56,20 +56,25 @@ class UserInterface {open
         xywh {738 29 266 184}
       } {
         Fl_Input ristAddressInput {
-          label Address
+          label Address selected
           xywh {786 56 218 22}
         }
         Fl_Input ristPortInput {
-          label Port
+          label Port selected
           xywh {786 86 92 22}
         }
         Fl_Input ristBufferInput {
-          label Buffer
+          label Buffer selected
           xywh {786 116 92 22}
         }
         Fl_Input ristBandwidthInput {
-          label Bandwidth
+          label Bandwidth selected
           xywh {786 146 92 22}
+        }
+        Fl_Button {} {
+          label {Start Stream}
+          callback startStream_cb selected
+          xywh {786 176 218 22}
         }
       }
       Fl_Text_Display logDisplay {

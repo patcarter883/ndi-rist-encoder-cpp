@@ -16,7 +16,7 @@ UserInterface::UserInterface() {
   { mainWindow = new Fl_Double_Window(1172, 421, "NDI RIST Encoder");
     mainWindow->user_data((void*)(this));
     { inputGroup = new Fl_Group(25, 25, 258, 160, "Input");
-      { previewSourceBtn = new Fl_Button(55, 83, 180, 24, "Preview Source");
+      { previewSourceBtn = new Fl_Button(79, 83, 180, 24, "Preview Source");
         previewSourceBtn->callback((Fl_Callback*)preview_cb);
       } // Fl_Button* previewSourceBtn
       { ndiSourceSelect = new Fl_Choice(119, 53, 140, 22, "NDI Source");
@@ -40,6 +40,9 @@ UserInterface::UserInterface() {
       } // Fl_Input* ristBufferInput
       { ristBandwidthInput = new Fl_Input(786, 146, 92, 22, "Bandwidth");
       } // Fl_Input* ristBandwidthInput
+      { Fl_Button* o = new Fl_Button(786, 176, 218, 22, "Start Stream");
+        o->callback((Fl_Callback*)startStream_cb);
+      } // Fl_Button* o
       outputGroup->end();
     } // Fl_Group* outputGroup
     { logDisplay = new Fl_Text_Display(25, 242, 1132, 164, "Log");

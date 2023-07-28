@@ -9,6 +9,7 @@
 extern void preview_cb(Fl_Button*, void*);
 #include <FL/Fl_Choice.H>
 #include <FL/Fl_Input.H>
+extern void startStream_cb(Fl_Button*, void*);
 #include <FL/Fl_Text_Display.H>
 
 class UserInterface {
