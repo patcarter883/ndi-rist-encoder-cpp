@@ -1,3 +1,0 @@
-repository='https://code.videolan.org/rist/rist-cpp.git'
-module=''
-tag='origin'

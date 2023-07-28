@@ -45,15 +45,19 @@ void *previewNDISource(void *p)
 	GstMessage *msg;
 
 	/* setup pipeline */
-	pipeline = gst_pipeline_new("pipeline");
-	ndisrc = sourceMap[ui->ndiSourceSelect->mvalue()->label()];
-	ndidemux = gst_element_factory_make("ndisrcdemux", "demux");
-	conv = gst_element_factory_make("videoconvert", "conv");
-	videosink = gst_element_factory_make("xvimagesink", "videosink");
-	bus = gst_element_get_bus (pipeline);
+// 	pipeline = gst_pipeline_new("pipeline");
+// 	ndisrc = sourceMap[ui->ndiSourceSelect->mvalue()->label()];
+// 	ndidemux = gst_element_factory_make("ndisrcdemux", "demux");
+// 	conv = gst_element_factory_make("videoconvert", "conv");
+// 	videosink = gst_element_factory_make("xvimagesink", "videosink");
+// 	bus = gst_element_get_bus (pipeline);
 
-	gst_bin_add_many (GST_BIN (pipeline), ndisrc, ndidemux, conv, videosink, NULL);
-  gst_element_link_many (ndisrc, ndidemux, conv, videosink, NULL);
+// 	gst_bin_add_many (GST_BIN (pipeline), ndisrc, ndidemux, conv, videosink, NULL);
+//   gst_element_link_many (ndisrc, ndidemux, conv, videosink, NULL);
+
+pipeline = gst_parse_launch(fmt::format("ndisrc ndi-name=\"{}\" ! ndisrcdemux name=demux   demux.video ! queue ! videoconvert ! autovideosink  demux.audio ! queue ! audioconvert ! autoaudiosink", ui->ndiSourceSelect->mvalue()->label()).c_str(), NULL);
+bus = gst_element_get_bus (pipeline);
+
   gst_element_set_state (pipeline, GST_STATE_PLAYING);
   msg =
       gst_bus_timed_pop_filtered (bus, GST_CLOCK_TIME_NONE,
