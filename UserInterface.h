@@ -8,7 +8,12 @@
 #include <FL/Fl_Button.H>
 extern void preview_cb(Fl_Button*, void*);
 #include <FL/Fl_Choice.H>
+extern void select_codec_cb(Fl_Menu_*, void*);
 #include <FL/Fl_Input.H>
+extern void rist_address_cb(Fl_Input*, void*);
+extern void rist_port_cb(Fl_Input*, void*);
+extern void rist_buffer_cb(Fl_Input*, void*);
+extern void rist_bandwidth_cb(Fl_Input*, void*);
 extern void startStream_cb(Fl_Button*, void*);
 #include <FL/Fl_Text_Display.H>
 

@@ -39,14 +39,20 @@ class UserInterface {open
         } {
           MenuItem h264CodecChoice {
             label H264
+            user_data {"h264"}
+            callback select_codec_cb
             xywh {0 0 100 20}
           }
           MenuItem h265CodecChoice {
             label H265
+            user_data {"h265"}
+            callback select_codec_cb
             xywh {0 0 100 20}
           }
           MenuItem av1CodecChoice {
             label AV1
+            user_data {"av1"}
+            callback select_codec_cb selected
             xywh {0 0 100 20}
           }
         }
@@ -56,24 +62,28 @@ class UserInterface {open
         xywh {738 29 266 184}
       } {
         Fl_Input ristAddressInput {
-          label Address selected
+          label Address
+          callback rist_address_cb
           xywh {786 56 218 22}
         }
         Fl_Input ristPortInput {
-          label Port selected
+          label Port
+          callback rist_port_cb
           xywh {786 86 92 22}
         }
         Fl_Input ristBufferInput {
-          label Buffer selected
+          label Buffer
+          callback rist_buffer_cb
           xywh {786 116 92 22}
         }
         Fl_Input ristBandwidthInput {
-          label Bandwidth selected
+          label Bandwidth
+          callback rist_bandwidth_cb
           xywh {786 146 92 22}
         }
         Fl_Button {} {
           label {Start Stream}
-          callback startStream_cb selected
+          callback startStream_cb
           xywh {786 176 218 22}
         }
       }

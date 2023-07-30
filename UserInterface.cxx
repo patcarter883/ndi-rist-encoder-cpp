@@ -3,9 +3,9 @@
 #include "UserInterface.h"
 
 Fl_Menu_Item UserInterface::menu_codecSelect[] = {
- {"H264", 0,  0, 0, 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"H265", 0,  0, 0, 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"AV1", 0,  0, 0, 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"H264", 0,  (Fl_Callback*)select_codec_cb, (void*)("h264"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"H265", 0,  (Fl_Callback*)select_codec_cb, (void*)("h265"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"AV1", 0,  (Fl_Callback*)select_codec_cb, (void*)("av1"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
  {0,0,0,0,0,0,0,0,0}
 };
 Fl_Menu_Item* UserInterface::h264CodecChoice = UserInterface::menu_codecSelect + 0;
@@ -33,12 +33,16 @@ UserInterface::UserInterface() {
     } // Fl_Group* encodeGroup
     { outputGroup = new Fl_Group(738, 29, 266, 184, "Output");
       { ristAddressInput = new Fl_Input(786, 56, 218, 22, "Address");
+        ristAddressInput->callback((Fl_Callback*)rist_address_cb);
       } // Fl_Input* ristAddressInput
       { ristPortInput = new Fl_Input(786, 86, 92, 22, "Port");
+        ristPortInput->callback((Fl_Callback*)rist_port_cb);
       } // Fl_Input* ristPortInput
       { ristBufferInput = new Fl_Input(786, 116, 92, 22, "Buffer");
+        ristBufferInput->callback((Fl_Callback*)rist_buffer_cb);
       } // Fl_Input* ristBufferInput
       { ristBandwidthInput = new Fl_Input(786, 146, 92, 22, "Bandwidth");
+        ristBandwidthInput->callback((Fl_Callback*)rist_bandwidth_cb);
       } // Fl_Input* ristBandwidthInput
       { Fl_Button* o = new Fl_Button(786, 176, 218, 22, "Start Stream");
         o->callback((Fl_Callback*)startStream_cb);

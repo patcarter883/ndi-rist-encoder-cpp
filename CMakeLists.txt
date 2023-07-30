@@ -16,6 +16,8 @@ add_subdirectory(fmt)
 set(FLTK_DIR ../fltk/build/${CMAKE_BUILD_TYPE})
 find_package(FLTK REQUIRED NO_MODULE)
 
+find_package(MbedTLS)
+
 #Include libristnet
 include(ExternalProject)
 ExternalProject_Add(project_libristnet
@@ -59,7 +61,10 @@ target_link_libraries(ndi_rist_encoder
   PkgConfig::gstreamer
   PkgConfig::gstreamer-sdp
   PkgConfig::gstreamer-app
-  PkgConfig::gstreamer-video)
+  PkgConfig::gstreamer-video
+  MbedTLS::mbedtls
+  MbedTLS::mbedcrypto
+  MbedTLS::mbedx509)
 target_link_libraries(ndi_rist_encoder ristnet ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/build/librist.a) 
 target_link_libraries(ndi_rist_encoder ${NDI_LIBRARIES}) 
 

@@ -16,21 +16,48 @@
 #include "threads.h"
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
+#include <gst/allocators/gstdmabuf.h>
+#include <gst/video/video.h>
+
 
 UserInterface *ui = new UserInterface;
 Fl_Text_Buffer *logBuff = new Fl_Text_Buffer();
 Fl_Thread prime_thread;
-std::map<std::string, GstElement *> sourceMap;
 
 /* Structure to contain all our information, so we can pass it to callbacks */
-typedef struct _CustomData
-{
-	GstElement *pipeline;
-	GstElement *appsink;
+typedef struct _App App;
 
-	GMainLoop *main_loop; /* GLib's Main Loop */
-	bool is_live = FALSE;
-} CustomData;
+struct _App
+{
+	GstElement *datasrc_pipeline;
+	GstElement *filesrc, *parser, *decoder, *appsink;
+
+	gboolean is_eos;
+	GQueue *buf_queue;
+	GMutex queue_lock;
+	GMainLoop *loop;
+
+	RISTNetSender ristSender;
+};
+
+typedef struct _Config Config;
+
+struct _Config
+{
+	guint width;
+	guint height;
+	guint framerate;
+
+	std::string ndi_input_name;
+	std::string codec = "h264";
+	std::string rist_output_address = "127.0.0.1";
+	std::string rist_output_port = "5000";
+	std::string rist_output_buffer;
+	std::string rist_output_bandwidth;
+};
+
+/* Globals */
+Config config;
 
 int main(int argc, char **argv)
 {
@@ -48,87 +75,146 @@ int main(int argc, char **argv)
 	return result;
 }
 
-/* The appsink has received a buffer */
-static GstFlowReturn new_sample(GstAppSink *sink, gpointer user_data)
+static GstFlowReturn
+on_new_sample_from_sink(GstElement *elt, App *app)
 {
 	GstSample *sample;
+	GstBuffer *buffer;
+	GstMemory *memory;
+	GstMapInfo info;
 
-	/* Retrieve the buffer */
-	g_signal_emit_by_name(sink, "pull-sample", &sample);
-	if (sample)
+	/* get the sample from appsink */
+	sample = gst_app_sink_pull_sample(GST_APP_SINK(elt));
+	buffer = gst_sample_get_buffer(sample);
+	if (!buffer)
 	{
-		/* The only thing we do in this example is print a * to indicate a received buffer */
-		g_print("*");
-		gst_sample_unref(sample);
-		return GST_FLOW_OK;
+		g_print("\nPulled NULL buffer. Exiting...\n");
+		return GST_FLOW_EOS;
 	}
 
-	return GST_FLOW_ERROR;
+	memory = gst_buffer_get_memory(buffer, 0);
+
+	gst_memory_map(memory, &info, GST_MAP_READ);
+	gsize &buf_size = info.size;
+	guint8 *&buf_data = info.data;
+
+	app->ristSender.sendData(buf_data, buf_size);
+
+	//   mem = gst_buffer_peek_memory (buffer, 0);
+	//   if (mem && gst_is_dmabuf_memory (mem)) {
+	//     /* buffer ref required because we will unref sample */
+	//     g_mutex_lock (&app->queue_lock);
+	//     g_queue_push_tail (app->buf_queue, gst_buffer_ref (buffer));
+	//     g_mutex_unlock (&app->queue_lock);
+	//   } else {
+	//     g_print ("\nPulled non-dmabuf. Exiting...\n");
+	//     return GST_FLOW_EOS;
+	//   }
+
+	gst_memory_unmap(memory, &info);
+	gst_memory_unref(memory);
+	gst_sample_unref(sample);
+	return GST_FLOW_OK;
 }
 
-/* This function is called when an error message is posted on the bus */
-static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data)
+static gboolean
+datasrc_message(GstBus *bus, GstMessage *message, App *app)
 {
-	GError *err;
-	gchar *debug_info;
-
-	/* Print error details on the screen */
-	gst_message_parse_error(msg, &err, &debug_info);
-	g_printerr("Error received from element %s: %s\n", GST_OBJECT_NAME(msg->src), err->message);
-	g_printerr("Debugging information: %s\n", debug_info ? debug_info : "none");
-	g_clear_error(&err);
-	g_free(debug_info);
-
-	g_main_loop_quit(data->main_loop);
+	switch (GST_MESSAGE_TYPE(message))
+	{
+	case GST_MESSAGE_ERROR:
+		g_error("\nReceived error from datasrc_pipeline...\n");
+		if (g_main_loop_is_running(app->loop))
+			g_main_loop_quit(app->loop);
+		break;
+	case GST_MESSAGE_EOS:
+		g_print("\nReceived EOS from datasrc_pipeline...\n");
+		app->is_eos = TRUE;
+		break;
+	default:
+		break;
+	}
+	return TRUE;
 }
 
 void *startStream(void *p)
 {
-	CustomData data;
-	GstBus *bus;
-	UserInterface *ui = (UserInterface *)p;
-	GstStateChangeReturn ret;
+	App app;
+	GstBus *datasrc_bus;
+	GstPad *pad;
+	std::string datasrc_pipeline_str;
+	GError *error = NULL;
+	GOptionContext *context;
 
-	data.pipeline = gst_parse_launch(fmt::format(R"""(
-appsink emit-signals=True name=appsink \
-ndisrc ndi-name="{}" ! ndisrcdemux name=demux \
-demux.video ! queue ! videoconvert ! openh264enc ! h264parse ! rtph264pay pt=97 ! appsink.)""",
-// demux.audio ! queue ! audioconvert ! avenc_aac ! aacparse ! rtpmp4gpay pt=98 ! appsink.)""",
-												 ui->ndiSourceSelect->mvalue()->label())
-										 .c_str(),
-									 NULL);
-	data.appsink = gst_bin_get_by_name((GstBin *)data.pipeline, "appsink");
-	bus = gst_element_get_bus(data.pipeline);
+	// Generate a vector of RIST URL's,  ip(name), ports, RIST URL output, listen(true) or send mode (false)
+	std::string lURL;
+	std::vector<std::tuple<std::string, int>> interfaceListSender;
+	if (RISTNetTools::buildRISTURL(config.rist_output_address, config.rist_output_port, lURL, false))
+	{
+		interfaceListSender.push_back(std::tuple<std::string, int>(lURL, 5));
+	}
 
-	// g_object_set(data.appsink, "emit-signals", TRUE);
-	// g_signal_connect(data.appsink, "new-sample", G_CALLBACK(new_sample), &data);
+	// Populate the settings
+	RISTNetSender::RISTNetSenderSettings mySendConfiguration;
+	app.ristSender.initSender(interfaceListSender, mySendConfiguration);
 
-	GstAppSinkCallbacks cbs;
-	cbs.new_sample = &new_sample;
-	gst_app_sink_set_callbacks(GST_APP_SINK(data.appsink), &cbs, NULL, 0);
+	app.is_eos = FALSE;
+	app.loop = g_main_loop_new(NULL, FALSE);
+	app.buf_queue = g_queue_new();
+	g_mutex_init(&app.queue_lock);
 
-	gst_bus_add_signal_watch(bus);
-	g_signal_connect(G_OBJECT(bus), "message::error", (GCallback)error_cb, &data);
-	gst_object_unref(bus);
+	std::string datasrc_pipeline_source_str = fmt::format("appsink name=appsink ndisrc ndi-name=\"{}\" ! ndisrcdemux name=demux demux.video ! queue ! videoconvert ! ",
+														  config.ndi_input_name);
 
-		ret = gst_element_set_state(data.pipeline, GST_STATE_PLAYING);
-		if (ret == GST_STATE_CHANGE_FAILURE)
-		{
-			g_printerr("Unable to set the pipeline to the playing state.\n");
-			gst_object_unref(data.pipeline);
-			return 0L;
-		}
-		else if (ret == GST_STATE_CHANGE_NO_PREROLL)
-		{
-			data.is_live = TRUE;
-		}
+	if (config.codec == "h264")
+	{
+		datasrc_pipeline_str = datasrc_pipeline_source_str + "x264enc ! h264parse ! rtph264pay pt=97 ! appsink.";
+	}
+	else if (config.codec == "h265")
+	{
+		datasrc_pipeline_str = datasrc_pipeline_source_str + "x265enc ! h265parse ! rtph265pay pt=97 ! appsink.";
+	}
+	else if (config.codec == "av1")
+	{
+		datasrc_pipeline_str = datasrc_pipeline_source_str + "av1enc ! av1parse ! rtpav1pay pt=97 ! appsink.";
+	}
 
-	data.main_loop = g_main_loop_new(NULL, FALSE);
-	g_main_loop_run(data.main_loop);
+	g_printerr(datasrc_pipeline_str.c_str());
+	app.datasrc_pipeline = gst_parse_launch(datasrc_pipeline_str.c_str(), NULL);
+	if (app.datasrc_pipeline == NULL)
+	{
+		g_print("*** Bad datasrc_pipeline ***\n");
+	}
 
-	/* Free resources */
-	gst_element_set_state(data.pipeline, GST_STATE_NULL);
-	gst_object_unref(data.pipeline);
+	datasrc_bus = gst_element_get_bus(app.datasrc_pipeline);
+
+	/* add watch for messages */
+	gst_bus_add_watch(datasrc_bus, (GstBusFunc)datasrc_message, &app);
+
+	/* set up appsink */
+	app.appsink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "appsink");
+	g_object_set(G_OBJECT(app.appsink), "emit-signals", TRUE, "sync", FALSE,
+				 NULL);
+	g_signal_connect(app.appsink, "new-sample",
+					 G_CALLBACK(on_new_sample_from_sink), &app);
+
+	g_print("Changing state of datasrc_pipeline to PLAYING...\n");
+
+	/* only start datasrc_pipeline to ensure we have enough data before
+	 * starting datasink_pipeline
+	 */
+	gst_element_set_state(app.datasrc_pipeline, GST_STATE_PLAYING);
+
+	g_main_loop_run(app.loop);
+
+	g_print("stopping...\n");
+
+	gst_element_set_state(app.datasrc_pipeline, GST_STATE_NULL);
+
+	gst_object_unref(datasrc_bus);
+	g_main_loop_unref(app.loop);
+	g_queue_clear(app.buf_queue);
+	g_mutex_clear(&app.queue_lock);
 
 	return 0L;
 }
@@ -190,8 +276,37 @@ void preview_cb(Fl_Button *o, void *v)
 
 void startStream_cb(Fl_Button *o, void *v)
 {
-	// fl_create_thread(prime_thread, startStream, ui);
-	startStream(ui);
+	fl_create_thread(prime_thread, startStream, ui);
+}
+
+void ndi_source_select_cb(Fl_Widget *o, void *v)
+{
+	config.ndi_input_name = (char *)v;
+}
+
+void select_codec_cb(Fl_Menu_ *o, void *v)
+{
+	config.codec = (char *)v;
+}
+
+void rist_address_cb(Fl_Input *o, void *v)
+{
+	config.rist_output_address = o->value();
+}
+
+void rist_port_cb(Fl_Input *o, void *v)
+{
+	config.rist_output_port = o->value();
+}
+
+void rist_buffer_cb(Fl_Input *o, void *v)
+{
+	config.rist_output_buffer = o->value();
+}
+
+void rist_bandwidth_cb(Fl_Input *o, void *v)
+{
+	config.rist_output_bandwidth = o->value();
 }
 
 void *findNdiDevices(void *p)
@@ -220,10 +335,10 @@ void *findNdiDevices(void *p)
 			{
 				GstDevice *newDevice;
 				gst_message_parse_device_added(msg, &newDevice);
-				std::string newDeviceName = gst_device_get_display_name(newDevice);
+				char *newDeviceDisplayName = gst_device_get_display_name(newDevice);
+				char *newDeviceNdiName = const_cast<char *>(gst_structure_get_string(gst_device_get_properties(newDevice), "ndi-name"));
 				Fl::lock();
-				ui->logDisplay->insert(gst_device_get_display_name(newDevice));
-				ui->ndiSourceSelect->add(gst_device_get_display_name(newDevice));
+				ui->ndiSourceSelect->add(newDeviceDisplayName, 0, ndi_source_select_cb, newDeviceDisplayName, 0);
 				Fl::unlock();
 				Fl::awake();
 				gst_object_unref(newDevice);
