@@ -214,13 +214,13 @@ void *startStream(void *p)
 	else if (config.codec == "h265")
 	{
 		// datasrc_pipeline_str = datasrc_pipeline_source_str + "x265enc ! h265parse config-interval=1 ! rtph265pay pt=97 ! appsink.";
-		datasrc_pipeline_str += "x265enc ! h265parse config-interval=1 ! mpegtsmux alignment=7 name=mux ! appsink. ";
-		datasrc_pipeline_str += "demux.audio ! queue ! audioconvert ! faac ! aacparse config-interval=1 ! mux. ! appsink. ";
+		datasrc_pipeline_str += "demux.video ! queue ! videoconvert ! x265enc ! h265parse config-interval=1 ! mpegtsmux alignment=7 name=mux ! appsink. ";
+		datasrc_pipeline_str += "demux.audio ! queue ! audioconvert ! faac ! aacparse  ! mux. ! appsink. ";
 
 	}
 	else if (config.codec == "av1")
 	{
-		datasrc_pipeline_str += "av1enc ! av1parse ! rtpav1pay pt=97 ! rtpbin.send_rtp_sink_0  rtpbin.send_rtp_src_0 ! appsink. ";
+		datasrc_pipeline_str += "demux.video ! queue ! videoconvert ! av1enc ! av1parse ! rtpav1pay pt=97 ! rtpbin.send_rtp_sink_0  rtpbin.send_rtp_src_0 ! appsink. ";
 		// datasrc_pipeline_str = datasrc_pipeline_source_str + "av1enc ! av1parse config-interval=1 ! mpegtsmux alignment=7 ! appsink.";
 	}
 
