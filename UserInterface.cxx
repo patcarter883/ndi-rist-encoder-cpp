@@ -16,12 +16,15 @@ UserInterface::UserInterface() {
   { mainWindow = new Fl_Double_Window(1172, 421, "NDI RIST Encoder");
     mainWindow->user_data((void*)(this));
     { inputGroup = new Fl_Group(25, 25, 258, 160, "Input");
-      { previewSourceBtn = new Fl_Button(79, 83, 180, 24, "Preview Source");
+      { previewSourceBtn = new Fl_Button(79, 161, 180, 24, "Preview Source");
         previewSourceBtn->callback((Fl_Callback*)preview_cb);
       } // Fl_Button* previewSourceBtn
       { ndiSourceSelect = new Fl_Choice(119, 53, 140, 22, "NDI Source");
         ndiSourceSelect->down_box(FL_BORDER_BOX);
       } // Fl_Choice* ndiSourceSelect
+      { btnRefreshSources = new Fl_Button(79, 83, 185, 22, "Refresh Sources");
+        btnRefreshSources->callback((Fl_Callback*)refreshSources_cb);
+      } // Fl_Button* btnRefreshSources
       inputGroup->end();
     } // Fl_Group* inputGroup
     { encodeGroup = new Fl_Group(361, 25, 250, 192, "Encode");
@@ -31,7 +34,7 @@ UserInterface::UserInterface() {
       } // Fl_Choice* codecSelect
       encodeGroup->end();
     } // Fl_Group* encodeGroup
-    { outputGroup = new Fl_Group(738, 29, 266, 184, "Output");
+    { outputGroup = new Fl_Group(738, 29, 266, 195, "Output");
       { ristAddressInput = new Fl_Input(786, 56, 218, 22, "Address");
         ristAddressInput->callback((Fl_Callback*)rist_address_cb);
       } // Fl_Input* ristAddressInput
@@ -44,9 +47,13 @@ UserInterface::UserInterface() {
       { ristBandwidthInput = new Fl_Input(786, 146, 92, 22, "Bandwidth");
         ristBandwidthInput->callback((Fl_Callback*)rist_bandwidth_cb);
       } // Fl_Input* ristBandwidthInput
-      { Fl_Button* o = new Fl_Button(786, 176, 218, 22, "Start Stream");
-        o->callback((Fl_Callback*)startStream_cb);
-      } // Fl_Button* o
+      { btnStartStream = new Fl_Button(786, 176, 218, 22, "Start Stream");
+        btnStartStream->callback((Fl_Callback*)startStream_cb);
+      } // Fl_Button* btnStartStream
+      { btnStopStream = new Fl_Button(786, 202, 218, 22, "Stop Stream");
+        btnStopStream->callback((Fl_Callback*)stopStream_cb);
+        btnStopStream->deactivate();
+      } // Fl_Button* btnStopStream
       outputGroup->end();
     } // Fl_Group* outputGroup
     { logDisplay = new Fl_Text_Display(25, 242, 1132, 164, "Log");

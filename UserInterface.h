@@ -8,6 +8,7 @@
 #include <FL/Fl_Button.H>
 extern void preview_cb(Fl_Button*, void*);
 #include <FL/Fl_Choice.H>
+extern void refreshSources_cb(Fl_Button*, void*);
 extern void select_codec_cb(Fl_Menu_*, void*);
 #include <FL/Fl_Input.H>
 extern void rist_address_cb(Fl_Input*, void*);
@@ -15,6 +16,7 @@ extern void rist_port_cb(Fl_Input*, void*);
 extern void rist_buffer_cb(Fl_Input*, void*);
 extern void rist_bandwidth_cb(Fl_Input*, void*);
 extern void startStream_cb(Fl_Button*, void*);
+extern void stopStream_cb(Fl_Button*, void*);
 #include <FL/Fl_Text_Display.H>
 
 class UserInterface {
@@ -24,6 +26,7 @@ public:
   Fl_Group *inputGroup;
   Fl_Button *previewSourceBtn;
   Fl_Choice *ndiSourceSelect;
+  Fl_Button *btnRefreshSources;
   Fl_Group *encodeGroup;
   Fl_Choice *codecSelect;
   static Fl_Menu_Item menu_codecSelect[];
@@ -35,6 +38,8 @@ public:
   Fl_Input *ristPortInput;
   Fl_Input *ristBufferInput;
   Fl_Input *ristBandwidthInput;
+  Fl_Button *btnStartStream;
+  Fl_Button *btnStopStream;
   Fl_Text_Display *logDisplay;
   void show(int argc, char **argv);
 };
