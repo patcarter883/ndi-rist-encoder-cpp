@@ -16,27 +16,16 @@ add_subdirectory(fmt)
 set(FLTK_DIR ../fltk/build/${CMAKE_BUILD_TYPE})
 find_package(FLTK REQUIRED NO_MODULE)
 
-find_package(MbedTLS)
-
 #Include libristnet
-include(ExternalProject)
-ExternalProject_Add(project_libristnet
-        GIT_REPOSITORY https://code.videolan.org/rist/rist-cpp.git
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap
-        BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap
-        GIT_PROGRESS 1
-        BUILD_COMMAND cmake --build ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap --config ${CMAKE_BUILD_TYPE} --target ristnet
-        EXCLUDE_FROM_ALL TRUE
-        INSTALL_COMMAND ""
-        )
-add_library(ristnet STATIC IMPORTED)
-set_property(TARGET ristnet PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/libristnet.a)
+
+add_library(rist-cpp STATIC IMPORTED)
+set_property(TARGET rist-cpp PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/libristnet.a)
 
 
 #Pass information about where to find headers
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/include/)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/include/librist)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/build/include/librist)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/include/)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/include/librist)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/build/include/librist)
 
 set(NDI_INCLUDE_DIR ./ndi-headers)
 find_package(NDI REQUIRED)
@@ -51,8 +40,8 @@ pkg_search_module(gstreamer-video REQUIRED IMPORTED_TARGET gstreamer-video-1.0>=
 add_executable (ndi_rist_encoder WIN32 "ndi-rist-encoder.cpp" "ndi-rist-encoder.h"  "ristsender.c")
 
 target_include_directories(ndi_rist_encoder PUBLIC ${FLTK_INCLUDE_DIRS})
-target_include_directories(ndi_rist_encoder PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/)
-target_include_directories(ndi_rist_encoder PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/inc/)
+target_include_directories(ndi_rist_encoder PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/)
+target_include_directories(ndi_rist_encoder PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/inc/)
 target_include_directories(ndi_rist_encoder PRIVATE ${NDI_INCLUDE_DIRS})
 
 target_link_libraries(ndi_rist_encoder
@@ -61,15 +50,10 @@ target_link_libraries(ndi_rist_encoder
   PkgConfig::gstreamer
   PkgConfig::gstreamer-sdp
   PkgConfig::gstreamer-app
-  PkgConfig::gstreamer-video
-  MbedTLS::mbedtls
-  MbedTLS::mbedcrypto
-  MbedTLS::mbedx509)
-target_link_libraries(ndi_rist_encoder ristnet ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/build/librist.a) 
+  PkgConfig::gstreamer-video)
+target_link_libraries(ndi_rist_encoder rist-cpp ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/build/librist.a) 
 target_link_libraries(ndi_rist_encoder ${NDI_LIBRARIES}) 
 
-add_dependencies(ristnet project_libristnet)
-add_dependencies(ndi_rist_encoder ristnet)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET ndi_rist_encoder PROPERTY CXX_STANDARD 20)

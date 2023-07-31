@@ -163,20 +163,26 @@ void *startStream(void *p)
 	app.buf_queue = g_queue_new();
 	g_mutex_init(&app.queue_lock);
 
-	std::string datasrc_pipeline_source_str = fmt::format("appsink name=appsink ndisrc ndi-name=\"{}\" ! ndisrcdemux name=demux demux.video ! queue ! videoconvert ! ",
+	std::string datasrc_pipeline_source_str = fmt::format("rtpbin name=rtpbin appsink name=appsink ndisrc ndi-name=\"{}\" ! ndisrcdemux name=demux demux.video ! queue ! videoconvert ! ",
 														  config.ndi_input_name);
 
 	if (config.codec == "h264")
 	{
-		datasrc_pipeline_str = datasrc_pipeline_source_str + "x264enc ! h264parse ! rtph264pay pt=97 ! appsink.";
+		// datasrc_pipeline_str = datasrc_pipeline_source_str + "video/x-raw,format=I420 ! x264enc ! h264parse config-interval=1 ! queue ! rtph264pay ! rtpbin.send_rtp_sink_0  rtpbin.send_rtp_src_0 ! appsink.";
+		datasrc_pipeline_str = datasrc_pipeline_source_str + "video/x-raw,format=I420 ! x264enc ! h264parse config-interval=1 ! mpegtsmux alignment=7 ! appsink.";
+
 	}
 	else if (config.codec == "h265")
 	{
-		datasrc_pipeline_str = datasrc_pipeline_source_str + "x265enc ! h265parse ! rtph265pay pt=97 ! appsink.";
+		// datasrc_pipeline_str = datasrc_pipeline_source_str + "x265enc ! h265parse config-interval=1 ! rtph265pay pt=97 ! appsink.";
+		datasrc_pipeline_str = datasrc_pipeline_source_str + "x265enc ! h265parse config-interval=1 ! mpegtsmux alignment=7 ! appsink.";
+
 	}
 	else if (config.codec == "av1")
 	{
-		datasrc_pipeline_str = datasrc_pipeline_source_str + "av1enc ! av1parse ! rtpav1pay pt=97 ! appsink.";
+		datasrc_pipeline_str = datasrc_pipeline_source_str + "av1enc ! av1parse ! rtpav1pay pt=97 ! rtpbin.send_rtp_sink_0  rtpbin.send_rtp_src_0 ! appsink.";
+		// datasrc_pipeline_str = datasrc_pipeline_source_str + "av1enc ! av1parse config-interval=1 ! mpegtsmux alignment=7 ! appsink.";
+
 	}
 
 	g_printerr(datasrc_pipeline_str.c_str());
