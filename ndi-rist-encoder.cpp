@@ -38,6 +38,8 @@ struct _App
 	GMainLoop *loop;
 
 	RISTNetSender ristSender;
+
+	gboolean isPlaying = false;
 };
 
 typedef struct _Config Config;
@@ -65,6 +67,8 @@ std::thread findNdiThread;
 std::thread previewThread;
 std::thread encodeThread;
 std::thread ristThread;
+std::thread ristVideoThread;
+std::thread ristAudioThread;
 
 int main(int argc, char **argv)
 {
@@ -128,12 +132,18 @@ on_new_sample_from_sink(GstElement *elt, App *app, uint16_t streamid)
 		return GST_FLOW_EOS;
 	}
 
+	GstRTPBuffer rtp_buffer = GST_RTP_BUFFER_INIT;
+
+buffer = gst_rtp_buffer_new_allocate(500, 0, 0);
+
+gst_rtp_buffer_map(buffer, GST_MAP_READ, &rtp_buffer);
+
 	memory = gst_buffer_get_memory(buffer, 0);
 
 	gst_memory_map(memory, &info, GST_MAP_READ);
 	gsize &buf_size = info.size;
-	auto *&buf_data = info.data;
-	app->ristSender.sendData(buf_data, buf_size, 0, streamid);
+	guint8 *&buf_data = info.data;
+ 	app->ristSender.sendData(buf_data, buf_size, 0, streamid);
 
 	//   mem = gst_buffer_peek_memory (buffer, 0);
 	//   if (mem && gst_is_dmabuf_memory (mem)) {
@@ -164,6 +174,27 @@ on_new_sample_from_audio_sink(GstElement *elt, App *app)
 	return on_new_sample_from_sink(elt, app, 2000);
 }
 
+void *sinkAudioLoop(App *app) {
+	do
+	{
+		on_new_sample_from_sink(app->audiosink, app, 2000);
+	} while (app->isPlaying);
+}
+
+void *sinkVideoLoop(App *app) {
+	do
+	{
+		on_new_sample_from_sink(app->videosink, app, 1000);
+	} while (app->isPlaying);
+}
+
+void *sinkLoop(App *app) {
+	ristVideoThread = std::thread(sinkVideoLoop, app);
+	ristAudioThread = std::thread(sinkAudioLoop, app);
+	ristVideoThread.join();
+	ristAudioThread.join();
+}
+
 static gboolean
 datasrc_message(GstBus *bus, GstMessage *message, App *app)
 {
@@ -189,6 +220,8 @@ datasrc_message(GstBus *bus, GstMessage *message, App *app)
 		app->is_eos = TRUE;
 		break;
 	default:
+		logAppend(fmt::format("\n{} received from element {}\n",
+		GST_MESSAGE_TYPE_NAME(message), GST_OBJECT_NAME(message->src)));
 		break;
 	}
 	return TRUE;
@@ -220,24 +253,24 @@ void *startStream(void *p)
 	app.buf_queue = g_queue_new();
 	g_mutex_init(&app.queue_lock);
 
-	datasrc_pipeline_str += fmt::format("appsink name=videosink rtpbin name=rtpbin ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
+	datasrc_pipeline_str += fmt::format("multiqueue name=q multiqueue name=outq rtpbin name=rtpbin appsink name=videosink rtpbin name=rtpbin ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
 														  config.ndi_input_name);
-	datasrc_pipeline_str += "appsink name=audiosink demux.audio ! queue ! audioresample ! audioconvert ! avenc_aac ! aacparse ! rtpmp4gpay pt=97 ! rtpbin.send_rtp_sink_1 rtpbin.send_rtp_src_1 ! audiosink. ";
+	datasrc_pipeline_str += "appsink name=audiosink demux.audio ! q.sink_0 q.src_0 ! audioresample ! audioconvert ! avenc_aac ! aacparse ! rtpmp4gpay pt=97 ! rtpbin.send_rtp_sink_1 rtpbin.send_rtp_src_1  ! outq.sink_0 outq.src_0 ! audiosink. ";
 
 
 	if (config.codec == "h264")
 	{
-		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! video/x-raw,format=I420 ! x264enc bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency ! h264parse config-interval=1 ! rtph264pay pt=96 ! queue ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
+		datasrc_pipeline_str += fmt::format("demux.video ! q.sink_1 q.src_1 ! videoconvert ! video/x-raw,format=I420 ! x264enc bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency ! h264parse ! rtph264pay ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0  ! outq.sink_1 outq.src_1 ! videosink. ", config.bitrate);
 	}
 	else if (config.codec == "h265")
 	{
-		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! video/x-raw,format=I420 ! x265enc bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency ! h265parse config-interval=1 ! rtph265pay pt=96 ! queue ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
+		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! video/x-raw,format=I420 ! x265enc bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency ! h265parse ! rtph265pay aggregate-mode=max config-interval=1 pt=96 ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0  !  videosink. ", config.bitrate);
 
 	}
 	else if (config.codec == "av1")
 	{	
 		datasrc_pipeline_str += "rtpbin name=rtpbin ";
-		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! av1enc cpu-used=9 usage-profile=realtime tile-columns=2 tile-rows=2 ! av1parse ! rtpav1pay ! queue ! rtpbin.send_rtp_sink_0  rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
+		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! av1enc cpu-used=9 usage-profile=realtime tile-columns=2 tile-rows=2 ! av1parse ! rtpav1pay ! rtpbin.send_rtp_sink_1 rtpbin.send_rtp_src_1 ! videosink. ", config.bitrate);
 	}
 
 	logAppend(datasrc_pipeline_str.c_str());
@@ -254,27 +287,30 @@ void *startStream(void *p)
 
 	/* set up appsink */
 	app.videosink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "videosink");
-	g_object_set(G_OBJECT(app.videosink), "emit-signals", TRUE, "sync", FALSE,
-				 NULL);
-	g_signal_connect(app.videosink, "new-sample",
-					 G_CALLBACK(on_new_sample_from_video_sink), &app);
+	// g_object_set(G_OBJECT(app.videosink), "emit-signals", TRUE, "sync", FALSE,
+	// 			 NULL);
+	// g_signal_connect(app.videosink, "new-sample",
+	// 				 G_CALLBACK(on_new_sample_from_video_sink), &app);
 
 	/* set up appsink */
 	app.audiosink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "audiosink");
-	g_object_set(G_OBJECT(app.audiosink), "emit-signals", TRUE, "sync", FALSE,
-				 NULL);
-	g_signal_connect(app.audiosink, "new-sample",
-					 G_CALLBACK(on_new_sample_from_audio_sink), &app);
+	// g_object_set(G_OBJECT(app.audiosink), "emit-signals", TRUE, "sync", FALSE,
+	// 			 NULL);
+	// g_signal_connect(app.audiosink, "new-sample",
+	// 				 G_CALLBACK(on_new_sample_from_audio_sink), &app);
+
+	ristThread = std::thread(sinkLoop, &app);
 
 	logAppend("Changing state of datasrc_pipeline to PLAYING...\n");
 
 	/* only start datasrc_pipeline to ensure we have enough data before
 	 * starting datasink_pipeline
 	 */
+	
 	gst_element_set_state(app.datasrc_pipeline, GST_STATE_PLAYING);
-
+	app.isPlaying = true;
 	g_main_loop_run(app.loop);
-
+	app.isPlaying = false;
 	logAppend("stopping...\n");
 
 	gst_element_set_state(app.datasrc_pipeline, GST_STATE_NULL);
