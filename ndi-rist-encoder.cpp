@@ -38,6 +38,8 @@ struct _App
 	GMainLoop *loop;
 
 	RISTNetSender ristSender;
+
+	gboolean isPlaying = false;
 };
 
 typedef struct _Config Config;
@@ -65,6 +67,8 @@ std::thread findNdiThread;
 std::thread previewThread;
 std::thread encodeThread;
 std::thread ristThread;
+std::thread ristVideoThread;
+std::thread ristAudioThread;
 
 int main(int argc, char **argv)
 {
@@ -204,6 +208,8 @@ datasrc_message(GstBus *bus, GstMessage *message, App *app)
 		app->is_eos = TRUE;
 		break;
 	default:
+		logAppend(fmt::format("\n{} received from element {}\n",
+		GST_MESSAGE_TYPE_NAME(message), GST_OBJECT_NAME(message->src)));
 		break;
 	}
 	gst_debug_bin_to_dot_file(GST_BIN(app->datasrc_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-debug");
@@ -292,10 +298,11 @@ void *startStream(void *p)
 	/* only start datasrc_pipeline to ensure we have enough data before
 	 * starting datasink_pipeline
 	 */
+	
 	gst_element_set_state(app.datasrc_pipeline, GST_STATE_PLAYING);
-
+	app.isPlaying = true;
 	g_main_loop_run(app.loop);
-
+	app.isPlaying = false;
 	logAppend("stopping...\n");
 
 	gst_element_set_state(app.datasrc_pipeline, GST_STATE_NULL);
