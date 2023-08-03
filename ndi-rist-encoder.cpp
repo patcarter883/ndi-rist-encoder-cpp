@@ -29,7 +29,7 @@ typedef struct _App App;
 struct _App
 {
 	GstElement *datasrc_pipeline;
-	GstElement *filesrc, *parser, *decoder, *videosink, *audiosink;
+	GstElement *filesrc, *parser, *decoder, *videosink, *audiosink, *appsink;
 	GstDeviceMonitor *monitor;
 
 	gboolean is_eos;
@@ -111,57 +111,72 @@ void logAppend(std::string logMessage)
 	Fl::awake();
 }
 
-static GstFlowReturn
-on_new_sample_from_sink(GstElement *elt, App *app, uint16_t streamid)
+static uint64_t risttools_convertVideoRTPtoNTP(uint32_t i_rtp)
 {
-	GstSample *sample;
-	GstBuffer *buffer;
+	uint64_t i_ntp;
+    int32_t clock = 90000;
+    i_ntp = (uint64_t)i_rtp << 32;
+    i_ntp /= clock;
+	return i_ntp;
+}
+
+static uint64_t risttools_convertAudioRTPtoNTP(uint32_t i_rtp)
+{
+	uint64_t i_ntp;
+    int32_t clock = 48000;
+    i_ntp = (uint64_t)i_rtp << 32;
+    i_ntp /= clock;
+	return i_ntp;
+}
+
+void
+sendBufferToRist(GstBuffer *buffer) {
+	GstRTPBuffer rtp = GST_RTP_BUFFER_INIT;
 	GstMemory *memory;
 	GstMapInfo info;
 
-	/* get the sample from appsink */
-	sample = gst_app_sink_pull_sample(GST_APP_SINK(elt));
-	buffer = gst_sample_get_buffer(sample);
-	if (!buffer)
+	gst_rtp_buffer_map (buffer, GST_MAP_READ, &rtp);
+	// GstBuffer *payloadBuffer = gst_rtp_buffer_get_payload_buffer(&rtp);
+	gst_buffer_map(buffer, &info, GST_MAP_READ);
+	gsize &buf_size = info.size;
+	guint8 *&buf_data = info.data;
+	guint8 rtp_payloadType = gst_rtp_buffer_get_payload_type (&rtp);
+	guint32 rtp_ts = gst_rtp_buffer_get_timestamp(&rtp);
+	auto streamId = NULL;
+	if (rtp_payloadType == 97)
 	{
-		logAppend("\nPulled NULL buffer. Exiting...\n");
-		return GST_FLOW_EOS;
+		streamId = 2000;
+	}
+	else if (rtp_payloadType == 96)
+	{
+		streamId = 1000;
 	}
 
-	memory = gst_buffer_get_memory(buffer, 0);
+	app.ristSender.sendData(buf_data, buf_size, 0, 
+	streamId);
 
-	gst_memory_map(memory, &info, GST_MAP_READ);
-	gsize &buf_size = info.size;
-	auto *&buf_data = info.data;
-	app->ristSender.sendData(buf_data, buf_size, 0, streamid);
+	gst_rtp_buffer_unmap (&rtp);
+	gst_buffer_unmap(buffer, &info);
+}
 
-	//   mem = gst_buffer_peek_memory (buffer, 0);
-	//   if (mem && gst_is_dmabuf_memory (mem)) {
-	//     /* buffer ref required because we will unref sample */
-	//     g_mutex_lock (&app->queue_lock);
-	//     g_queue_push_tail (app->buf_queue, gst_buffer_ref (buffer));
-	//     g_mutex_unlock (&app->queue_lock);
-	//   } else {
-	//     logAppend ("\nPulled non-dmabuf. Exiting...\n");
-	//     return GST_FLOW_EOS;
-	//   }
+static GstFlowReturn
+on_new_sample_from_sink(GstElement *elt, App *app)
+{
+	GstSample *sample;
+	GstBuffer *buffer;
 
-	gst_memory_unmap(memory, &info);
-	gst_memory_unref(memory);
+	/* get the sample from appsink */
+	sample = gst_app_sink_pull_sample(GST_APP_SINK(elt));
+	buffer = gst_sample_get_buffer (sample);
+	if (buffer)
+	{
+		sendBufferToRist(buffer);
+		// logAppend("\nPulled no buffers. Exiting...\n");
+		// return GST_FLOW_EOS;
+	}
+
 	gst_sample_unref(sample);
 	return GST_FLOW_OK;
-}
-
-static GstFlowReturn
-on_new_sample_from_video_sink(GstElement *elt, App *app)
-{
-	return on_new_sample_from_sink(elt, app, 1000);
-}
-
-static GstFlowReturn
-on_new_sample_from_audio_sink(GstElement *elt, App *app)
-{
-	return on_new_sample_from_sink(elt, app, 2000);
 }
 
 static gboolean
@@ -191,6 +206,7 @@ datasrc_message(GstBus *bus, GstMessage *message, App *app)
 	default:
 		break;
 	}
+	gst_debug_bin_to_dot_file(GST_BIN(app->datasrc_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-debug");
 	return TRUE;
 }
 
@@ -217,54 +233,59 @@ void *startStream(void *p)
 
 	app.is_eos = FALSE;
 	app.loop = g_main_loop_new(NULL, FALSE);
-	app.buf_queue = g_queue_new();
-	g_mutex_init(&app.queue_lock);
 
-	datasrc_pipeline_str += fmt::format("appsink name=videosink rtpbin name=rtpbin ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
+	datasrc_pipeline_str += fmt::format("multiqueue name=demuxq multiqueue name=outq appsink name=videosink appsink name=audiosink rtpbin name=rtpbin ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
 														  config.ndi_input_name);
-	datasrc_pipeline_str += "appsink name=audiosink demux.audio ! queue ! audioresample ! audioconvert ! avenc_aac ! aacparse ! rtpmp4gpay pt=97 ! rtpbin.send_rtp_sink_1 rtpbin.send_rtp_src_1 ! audiosink. ";
+	datasrc_pipeline_str += "demux.audio ! demuxq.sink_0 demuxq.src_0 ! audioresample ! audioconvert ! avenc_aac ! aacparse ! rtpmp4gpay pt=97 ! rtpbin.send_rtp_sink_1 rtpbin.send_rtp_src_1 ! outq.sink_0 outq.src_0 ! audiosink. ";
 
 
 	if (config.codec == "h264")
 	{
-		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! video/x-raw,format=I420 ! x264enc bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency ! h264parse config-interval=1 ! rtph264pay pt=96 ! queue ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
+		datasrc_pipeline_str += fmt::format("demux.video ! demuxq.sink_1 demuxq.src_1 ! videoconvert ! video/x-raw,format=I420 ! x264enc bitrate={} speed-preset=fast tune=zerolatency ! h264parse ! rtph264pay config-interval=1 aggregate-mode=max-stap pt=96 ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0 ! outq.sink_1 outq.src_1 ! videosink. ", config.bitrate);
 	}
 	else if (config.codec == "h265")
 	{
-		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! video/x-raw,format=I420 ! x265enc bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency ! h265parse config-interval=1 ! rtph265pay pt=96 ! queue ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
-
+		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! video/x-raw,format=I420 ! x265enc bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency ! h265parse ! rtph265pay config-interval=1 aggregate-mode=max pt=96 ! queue ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
 	}
 	else if (config.codec == "av1")
 	{	
-		datasrc_pipeline_str += "rtpbin name=rtpbin ";
 		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! av1enc cpu-used=9 usage-profile=realtime tile-columns=2 tile-rows=2 ! av1parse ! rtpav1pay ! queue ! rtpbin.send_rtp_sink_0  rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
 	}
 
+
 	logAppend(datasrc_pipeline_str.c_str());
+	
 	app.datasrc_pipeline = gst_parse_launch(datasrc_pipeline_str.c_str(), NULL);
 	if (app.datasrc_pipeline == NULL)
 	{
 		logAppend("*** Bad datasrc_pipeline ***\n");
 	}
-
+	
 	datasrc_bus = gst_element_get_bus(app.datasrc_pipeline);
 
 	/* add watch for messages */
 	gst_bus_add_watch(datasrc_bus, (GstBusFunc)datasrc_message, &app);
+
+	// /* set up appsink */
+	// app.appsink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "appsink");
+	// g_object_set(G_OBJECT(app.appsink), "emit-signals", TRUE, "sync", TRUE,
+	// 			 NULL);
+	// g_signal_connect(app.appsink, "new-sample",
+	// 				 G_CALLBACK(on_new_sample_from_sink), &app);
 
 	/* set up appsink */
 	app.videosink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "videosink");
 	g_object_set(G_OBJECT(app.videosink), "emit-signals", TRUE, "sync", FALSE,
 				 NULL);
 	g_signal_connect(app.videosink, "new-sample",
-					 G_CALLBACK(on_new_sample_from_video_sink), &app);
+					 G_CALLBACK(on_new_sample_from_sink), &app);
 
 	/* set up appsink */
 	app.audiosink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "audiosink");
 	g_object_set(G_OBJECT(app.audiosink), "emit-signals", TRUE, "sync", FALSE,
 				 NULL);
 	g_signal_connect(app.audiosink, "new-sample",
-					 G_CALLBACK(on_new_sample_from_audio_sink), &app);
+					 G_CALLBACK(on_new_sample_from_sink), &app);
 
 	logAppend("Changing state of datasrc_pipeline to PLAYING...\n");
 
