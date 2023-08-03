@@ -1,4 +1,6 @@
-﻿// ndi-rist-encoder.cpp : Defines the entry point for the application.
+﻿// gst-launch-1.0 -v multiqueue name=demuxq multiqueue name=outq udpsrc port=6000 caps="application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! demuxq.sink_0 demuxq.src_0 ! rtph264depay ! h264parse ! queue ! avdec_h264 ! videoconvert ! outq.sink_0 outq.src_0 ! autovideosink udpsrc port=6002 caps="application/x-rtp, media=(string)audio, clock-rate=(int)48000, encoding-name=(string)MPEG4-GENERIC, encoding-params=(string)2, streamtype=(string)5, profile-level-id=(string)2, mode=(string)AAC-hbr, config=(string)119056e500, sizelength=(string)13, indexlength=(string)3, indexdeltalength=(string)3" ! demuxq.sink_1 demuxq.src_1 ! rtpmp4gdepay ! aacparse ! queue ! avdec_aac ! audioconvert ! outq.sink_1 outq.src_1 ! autoaudiosink
+
+// ndi-rist-encoder.cpp : Defines the entry point for the application.
 //
 #ifdef _WIN32
 #include <Windows.h>
@@ -208,11 +210,11 @@ datasrc_message(GstBus *bus, GstMessage *message, App *app)
 		app->is_eos = TRUE;
 		break;
 	default:
-		logAppend(fmt::format("\n{} received from element {}\n",
-		GST_MESSAGE_TYPE_NAME(message), GST_OBJECT_NAME(message->src)));
+		// logAppend(fmt::format("\n{} received from element {}\n",
+		// GST_MESSAGE_TYPE_NAME(message), GST_OBJECT_NAME(message->src)));
 		break;
 	}
-	gst_debug_bin_to_dot_file(GST_BIN(app->datasrc_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-debug");
+	// gst_debug_bin_to_dot_file(GST_BIN(app->datasrc_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-debug");
 	return TRUE;
 }
 
@@ -255,7 +257,7 @@ void *startStream(void *p)
 	}
 	else if (config.codec == "av1")
 	{	
-		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! av1enc cpu-used=9 usage-profile=realtime tile-columns=2 tile-rows=2 ! av1parse ! rtpav1pay ! queue ! rtpbin.send_rtp_sink_0  rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
+		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! av1enc bitrate={} cpu-used=9 usage-profile=realtime tile-columns=2 tile-rows=2 ! av1parse ! rtpav1pay ! queue ! rtpbin.send_rtp_sink_0  rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
 	}
 
 
