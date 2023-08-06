@@ -15,8 +15,8 @@ Fl_Menu_Item* UserInterface::av1CodecChoice = UserInterface::menu_codecSelect + 
 UserInterface::UserInterface() {
   { mainWindow = new Fl_Double_Window(1172, 421, "NDI RIST Encoder");
     mainWindow->user_data((void*)(this));
-    { inputGroup = new Fl_Group(25, 25, 258, 160, "Input");
-      { previewSourceBtn = new Fl_Button(79, 161, 180, 24, "Preview Source");
+    { inputGroup = new Fl_Group(25, 25, 266, 199, "Input");
+      { previewSourceBtn = new Fl_Button(79, 113, 185, 22, "Preview Source");
         previewSourceBtn->callback((Fl_Callback*)preview_cb);
       } // Fl_Button* previewSourceBtn
       { ndiSourceSelect = new Fl_Choice(119, 53, 140, 22, "NDI Source");
@@ -25,6 +25,12 @@ UserInterface::UserInterface() {
       { btnRefreshSources = new Fl_Button(79, 83, 185, 22, "Refresh Sources");
         btnRefreshSources->callback((Fl_Callback*)refreshSources_cb);
       } // Fl_Button* btnRefreshSources
+      { Fl_Button* o = new Fl_Button(78, 164, 190, 21, "Stream Source");
+        o->callback((Fl_Callback*)streamSource_cb);
+      } // Fl_Button* o
+      { Fl_Button* o = new Fl_Button(78, 193, 190, 22, "Stream Standby");
+        o->callback((Fl_Callback*)streamStandby_cb);
+      } // Fl_Button* o
       inputGroup->end();
     } // Fl_Group* inputGroup
     { encodeGroup = new Fl_Group(361, 25, 250, 192, "Encode");

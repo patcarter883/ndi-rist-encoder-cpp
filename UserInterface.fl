@@ -13,16 +13,16 @@ class UserInterface {open
   } {
     Fl_Window mainWindow {
       label {NDI RIST Encoder} open
-      xywh {536 425 1172 421} type Double visible
+      xywh {587 293 1172 421} type Double visible
     } {
       Fl_Group inputGroup {
         label Input open
-        xywh {25 25 258 160}
+        xywh {25 25 266 199}
       } {
         Fl_Button previewSourceBtn {
           label {Preview Source}
           callback preview_cb
-          xywh {79 161 180 24}
+          xywh {79 113 185 22}
         }
         Fl_Choice ndiSourceSelect {
           label {NDI Source}
@@ -30,8 +30,18 @@ class UserInterface {open
         } {}
         Fl_Button btnRefreshSources {
           label {Refresh Sources}
-          callback refreshSources_cb selected
+          callback refreshSources_cb
           xywh {79 83 185 22}
+        }
+        Fl_Button {} {
+          label {Stream Source}
+          callback streamSource_cb
+          xywh {78 164 190 21}
+        }
+        Fl_Button {} {
+          label {Stream Standby}
+          callback streamStandby_cb selected
+          xywh {78 193 190 22}
         }
       }
       Fl_Group encodeGroup {

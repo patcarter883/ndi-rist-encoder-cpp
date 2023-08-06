@@ -9,6 +9,8 @@
 extern void preview_cb(Fl_Button*, void*);
 #include <FL/Fl_Choice.H>
 extern void refreshSources_cb(Fl_Button*, void*);
+extern void streamSource_cb(Fl_Button*, void*);
+extern void streamStandby_cb(Fl_Button*, void*);
 extern void select_codec_cb(Fl_Menu_*, void*);
 #include <FL/Fl_Input.H>
 extern void rist_address_cb(Fl_Input*, void*);
