@@ -3,8 +3,11 @@
 // ndi-rist-encoder.cpp : Defines the entry point for the application.
 //
 #ifdef _WIN32
-#include <Windows.h>
-#else
+#    define FMT_USE_FCNTL 1
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <unistd.h>
 #endif
 #include <config.h>
@@ -15,7 +18,6 @@
 #include <chrono>
 #include <thread>
 #include <fmt/core.h>
-#include <threads.h>
 #include <gst/gst.h>
 #include <gst/rtp/rtp.h>
 #include <gst/app/gstappsink.h>

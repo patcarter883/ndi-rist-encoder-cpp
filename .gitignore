@@ -1,3 +1,5 @@
 build/**
+out/**
+rist-cpp/**
 ristwrap
 project_libristnet-prefix

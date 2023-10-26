@@ -150,7 +150,7 @@ option(FMT_INSTALL "Generate the install target." ON)
 option(FMT_TEST "Generate the test target." ${FMT_MASTER_PROJECT})
 option(FMT_FUZZ "Generate the fuzz target." OFF)
 option(FMT_CUDA_TEST "Generate the cuda-test target." OFF)
-option(FMT_OS "Include core requiring OS (Windows/Posix) " ON)
+option(FMT_OS "Include core requiring OS (Windows/Posix) " OFF)
 option(FMT_MODULE "Build a module instead of a traditional library." OFF)
 option(FMT_SYSTEM_HEADERS "Expose headers with marking them as system." OFF)
 

@@ -1,4 +1,5 @@
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #else
 #include <unistd.h>
@@ -7,27 +8,26 @@
 #include <chrono>
 #include <thread>
 #include <fmt/core.h>
-#include <threads.h>
-#include <gst/gst.h>
-#include <gst/rtp/rtp.h>
-#include <gst/app/gstappsink.h>
-#include <gst/allocators/gstdmabuf.h>
-#include <gst/video/video.h>
+// #include <gst/gst.h>
+// #include <gst/rtp/rtp.h>
+// #include <gst/app/gstappsink.h>
+// #include <gst/allocators/gstdmabuf.h>
+// #include <gst/video/video.h>
 
 /* Structure to contain all our information, so we can pass it to callbacks */
 typedef struct _App App;
 
 struct _App
 {
-	GstElement *datasrc_pipeline;
-	GstElement *appsrc;
+	// GstElement *datasrc_pipeline;
+	// GstElement *appsrc;
 
-	gboolean is_eos;
-	GMainLoop *loop;
+	// gboolean is_eos;
+	// GMainLoop *loop;
 
 	RISTNetReceiver ristReceiver;
 
-	gboolean isPlaying = false;
+	// gboolean isPlaying = false;
 };
 
 typedef struct _Config Config;
@@ -50,7 +50,7 @@ App app;
 int main(int argc, char **argv)
 {
 
-    GstBus *datasrc_bus;
+    // GstBus *datasrc_bus;
 
     // std::string lURL;
 	// std::vector<std::tuple<std::string, int>> interfaceListReceiver;

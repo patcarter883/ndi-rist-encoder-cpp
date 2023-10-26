@@ -4,7 +4,7 @@
         {
             "name": "windows-base",
             "hidden": true,
-            "generator": "Ninja",
+            "generator": "NMake Makefiles",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "installDir": "${sourceDir}/out/install/${presetName}",
             "condition": {
@@ -28,7 +28,7 @@
         {
             "name": "win-x64-release",
             "displayName": "x64 Release",
-            "inherits": "x64-debug",
+            "inherits": "win-x64-debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
@@ -58,6 +58,19 @@
             "displayName": "Linux x64 Release",
             "inherits": "linux-x64-debug",
             "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "windows-gcc",
+            "displayName": "GCC 13.2.0 x86_64-w64-mingw32 (ucrt64)",
+            "description": "Using compilers: C = C:\\msys64\\ucrt64\\bin\\gcc.exe, CXX = C:\\msys64\\ucrt64\\bin\\g++.exe",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}/bin",
+                "CMAKE_C_COMPILER": "gcc.exe",
+                "CMAKE_CXX_COMPILER": "g++.exe",
                 "CMAKE_BUILD_TYPE": "Release"
             }
         }
