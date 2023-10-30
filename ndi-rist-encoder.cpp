@@ -248,39 +248,22 @@ void *startStream(void *p)
 	app.is_eos = FALSE;
 	app.loop = g_main_loop_new(NULL, FALSE);
 
-	datasrc_pipeline_str += fmt::format("rtpgstpay config-interval=1 pt=100 name=videopay ! rtpfunnel. rtpgstpay config-interval=1 pt=101 name=audiopay ! rtpfunnel. multiqueue name=demuxq  rtpmux name=rtpfunnel ! queue ! appsink sync=true name=videosink ndisrc ndi-name=\"{}\" do-timestamp=true ! queue2 ! ndisrcdemux name=demux  ",
-											config.ndi_input_name);
+	datasrc_pipeline_str += fmt::format("multiqueue name=demuxq multiqueue name=outq appsink name=videosink appsink name=audiosink rtpbin name=rtpbin ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
+														  config.ndi_input_name);
+	datasrc_pipeline_str += "demux.audio ! demuxq.sink_0 demuxq.src_0 ! audioresample ! audioconvert ! avenc_aac ! aacparse ! rtpmp4gpay pt=97 ! rtpbin.send_rtp_sink_1 rtpbin.send_rtp_src_1 ! outq.sink_0 outq.src_0 ! audiosink. ";
 
-	datasrc_pipeline_str += "demux.video ! video/x-raw ! .sink_0 fallbackswitch name=fallbackvideo sink_0::priority=0 sink_1::priority=1 demux.audio ! audio/x-raw ! .sink_0 fallbackswitch name=fallbackaudio sink_0::priority=0 sink_1::priority=1 ";
-	datasrc_pipeline_str += "videotestsrc horizontal-speed=2 is-live=true ! fallbackvideo.sink_1  audiotestsrc is-live=true wave=ticks ! audio/x-raw,rate=48000,channels=2 ! fallbackaudio.sink_1 ";
-	datasrc_pipeline_str += "fallbackaudio. ! demuxq.sink_1 demuxq.src_1 ! audioresample ! audioconvert ! avenc_aac ! aacparse ! queue ! audiopay. ";
-	
-
-	// if (config.codec == "h264" || config.codec == "h265")
-	// {
-	// 	datasrc_pipeline_str += fmt::format("multiqueue name=demuxq  mpegtsmux name=mux ! tsparse alignment=7 ! queue ! appsink name=videosink ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
-	// 										config.ndi_input_name);
-		// datasrc_pipeline_str += "demux.audio ! demuxq.sink_0 demuxq.src_0 ! audioresample ! audioconvert ! avenc_aac ! aacparse ! queue ! mux. ";
-	// }
-	// else if (config.codec == "av1")
-	// {
-	// 	datasrc_pipeline_str += fmt::format("multiqueue name=demuxq multiqueue name=outq appsink name=videosink appsink name=audiosink rtpbin name=rtpbin ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
-	// 										config.ndi_input_name);
-	// 	datasrc_pipeline_str += "demux.audio ! demuxq.sink_0 demuxq.src_0 ! audioresample ! audioconvert ! avenc_aac ! aacparse ! rtpmp4gpay pt=97 ! rtpbin.send_rtp_sink_1 rtpbin.send_rtp_src_1 ! outq.sink_0 outq.src_0 ! audiosink. ";
-	// }
 
 	if (config.codec == "h264")
 	{
-		datasrc_pipeline_str += fmt::format("fallbackvideo. ! demuxq.sink_0 demuxq.src_0 ! videoconvert ! video/x-raw,format=I420 ! x264enc bitrate={} key-int-max=30 speed-preset=fast tune=zerolatency ! h264parse config-interval=1 ! queue ! videopay. ", config.bitrate);
-		// datasrc_pipeline_str += fmt::format("demux.video ! demuxq.sink_1 demuxq.src_1 ! videoconvert ! video/x-raw,format=I420 ! x264enc bitrate={} key-int-max=30 speed-preset=fast tune=zerolatency ! h264parse config-interval=1 ! queue ! mux.", config.bitrate);
+		datasrc_pipeline_str += fmt::format("demux.video ! demuxq.sink_1 demuxq.src_1 ! videoconvert ! video/x-raw,format=I420 ! x264enc bitrate={} speed-preset=fast tune=zerolatency ! h264parse ! rtph264pay config-interval=1 aggregate-mode=max-stap pt=96 ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0 ! outq.sink_1 outq.src_1 ! videosink. ", config.bitrate);
 	}
 	else if (config.codec == "h265")
 	{
-		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! x265enc bitrate={} key-int-max=30 speed-preset=ultrafast tune=zerolatency ! h265parse config-interval=1 ! queue ! videopay. ", config.bitrate);
+		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! video/x-raw,format=I420 ! x265enc bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency ! h265parse ! rtph265pay config-interval=1 aggregate-mode=max pt=96 ! queue ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
 	}
 	else if (config.codec == "av1")
-	{
-		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! av1enc target-bitrate={} cpu-used=9 usage-profile=realtime tile-columns=2 tile-rows=2 ! av1parse ! videopay. ", config.bitrate);
+	{	
+		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! av1enc bitrate={} cpu-used=9 usage-profile=realtime tile-columns=2 tile-rows=2 ! av1parse ! rtpav1pay ! queue ! rtpbin.send_rtp_sink_0  rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
 	}
 
 	logAppend(datasrc_pipeline_str.c_str());
@@ -308,14 +291,13 @@ void *startStream(void *p)
 	g_signal_connect(app.videosink, "new-sample",
 					 G_CALLBACK(on_new_sample_from_sink), &app);
 
-	if (config.codec == "av1") {
 	/* set up appsink */
 	app.audiosink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "audiosink");
 	g_object_set(G_OBJECT(app.audiosink), "emit-signals", TRUE, "sync", FALSE,
 				 NULL);
 	g_signal_connect(app.audiosink, "new-sample",
 					 G_CALLBACK(on_new_sample_from_sink), &app);
-	}
+	
 	logAppend("Changing state of datasrc_pipeline to PLAYING...\n");
 
 	/* only start datasrc_pipeline to ensure we have enough data before
