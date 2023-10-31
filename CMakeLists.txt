@@ -27,8 +27,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/include/)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/include/librist)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/build/include/librist)
 
-set(NDI_INCLUDE_DIR ./ndi-headers)
-find_package(NDI REQUIRED)
+set(NDI_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ndi-headers)
+find_package(NDI)
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(gstreamer REQUIRED IMPORTED_TARGET gstreamer-1.0>=1.4)
@@ -39,15 +39,15 @@ pkg_search_module(gstreamer-video REQUIRED IMPORTED_TARGET gstreamer-video-1.0>=
 
 # Add source to this project's executable.
 add_executable (ndi_rist_encoder WIN32 "ndi-rist-encoder.cpp" "ndi-rist-encoder.h"  "ristsender.c")
-add_executable (rist_restreamer WIN32 "rist-restreamer.cpp" "rist-restreamer.h" )
+# add_executable (rist_restreamer WIN32 "rist-restreamer.cpp" "rist-restreamer.h" )
 
 target_include_directories(ndi_rist_encoder PUBLIC ${FLTK_INCLUDE_DIRS})
 target_include_directories(ndi_rist_encoder PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/)
 target_include_directories(ndi_rist_encoder PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/inc/)
 target_include_directories(ndi_rist_encoder PRIVATE ${NDI_INCLUDE_DIRS})
 
-target_include_directories(rist_restreamer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/)
-target_include_directories(rist_restreamer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/inc/)
+# target_include_directories(rist_restreamer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/)
+# target_include_directories(rist_restreamer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/inc/)
 
 target_link_libraries(ndi_rist_encoder
   fmt::fmt
@@ -60,15 +60,15 @@ target_link_libraries(ndi_rist_encoder
 target_link_libraries(ndi_rist_encoder rist-cpp ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/build/librist.a) 
 target_link_libraries(ndi_rist_encoder ${NDI_LIBRARIES}) 
 
-target_link_libraries(rist_restreamer
-  fmt::fmt
-  fltk
-  PkgConfig::gstreamer
-  PkgConfig::gstreamer-sdp
-  PkgConfig::gstreamer-rtp
-  PkgConfig::gstreamer-app
-  PkgConfig::gstreamer-video)
-target_link_libraries(rist_restreamer rist-cpp ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/build/librist.a)
+# target_link_libraries(rist_restreamer
+#   fmt::fmt
+#   fltk
+#   PkgConfig::gstreamer
+#   PkgConfig::gstreamer-sdp
+#   PkgConfig::gstreamer-rtp
+#   PkgConfig::gstreamer-app
+#   PkgConfig::gstreamer-video)
+# target_link_libraries(rist_restreamer rist-cpp ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/build/librist.a)
 
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)

@@ -37,26 +37,48 @@
             "name": "linux-base",
             "hidden": true,
             "generator": "Unix Makefiles",
-            "binaryDir": "${sourceDir}/build"
-        },
-        {
-            "name": "linux-x64-debug",
-            "displayName": "Linux x64 Debug",
-            "inherits": "linux-base",
-            "architecture": {
-                "value": "x64",
-                "strategy": "external"
-            },
+            "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++"
             }
         },
         {
+            "name": "linux-x64-debug",
+            "displayName": "Linux x64 Debug",
+            "inherits": "linux-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
             "name": "linux-x64-release",
             "displayName": "Linux x64 Release",
-            "inherits": "linux-x64-debug",
+            "inherits": "linux-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "mingw-base",
+            "hidden": true,
+            "generator": "Unix Makefiles",
+            "toolchainFile": "${sourceDir}/mingw-base.cmake",
+            "cmakeExecutable": "x86_64-w64-mingw32-cmake",
+            "binaryDir": "${sourceDir}/build/${presetName}"
+        },
+        {
+            "name": "mingw-x64-debug",
+            "displayName": "mingw x64 Debug",
+            "inherits": "mingw-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "mingw-x64-release",
+            "displayName": "mingw x64 Release",
+            "inherits": "mingw-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
