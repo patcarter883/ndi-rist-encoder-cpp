@@ -2,3 +2,4 @@ build/**
 ristwrap
 project_libristnet-prefix
 rist-cpp/**
+.vs/**

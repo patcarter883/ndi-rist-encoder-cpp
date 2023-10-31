@@ -17,10 +17,20 @@ set(FLTK_DIR ../fltk/build/${CMAKE_BUILD_TYPE})
 find_package(FLTK REQUIRED NO_MODULE)
 
 #Include libristnet
+ExternalProject_Add(project_libristnet
+        GIT_REPOSITORY https://github.com/patcarter883/rist-cpp.git
+        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap
+        BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap
+        GIT_PROGRESS 1
+        BUILD_COMMAND cmake --build ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap --config ${CMAKE_BUILD_TYPE} --target ristnet
+        STEP_TARGETS build
+        EXCLUDE_FROM_ALL TRUE
+        INSTALL_COMMAND ""
+        )
 
 add_library(rist-cpp STATIC IMPORTED)
 set_property(TARGET rist-cpp PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/libristnet.a)
-
+add_dependencies(ristnet project_libristnet)
 
 #Pass information about where to find headers
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/rist-cpp/rist/include/)
