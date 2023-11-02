@@ -1,5 +1,6 @@
 build/**
 ristwrap
 project_libristnet-prefix
-rist-cpp/**
+ristwrap/**
 .vs/**
+NDI/**

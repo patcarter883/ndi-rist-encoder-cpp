@@ -4,7 +4,7 @@
         {
             "name": "windows-base",
             "hidden": true,
-            "generator": "Ninja",
+            "generator": "NMake Makefiles",
             "binaryDir": "${sourceDir}/build/${presetName}",
             "architecture": {
                 "value": "x64",
@@ -14,6 +14,31 @@
                 "type": "equals",
                 "lhs": "${hostSystemName}",
                 "rhs": "Windows"
+            }
+        },
+        {
+            "name": "windows-ucrt-base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "toolchainFile": "${sourceDir}/mingw-ucrt.cmake",
+            "cmakeExecutable": "C:\\msys64\\ucrt64\\bin\\cmake.exe",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "win-x64-ucrt-debug",
+            "displayName": "Win x64 MinGW UCRT Debug",
+            "inherits": "windows-ucrt-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
             }
         },
         {

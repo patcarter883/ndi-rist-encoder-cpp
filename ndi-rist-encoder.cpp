@@ -2,12 +2,12 @@
 
 // ndi-rist-encoder.cpp : Defines the entry point for the application.
 //
-#ifdef _WIN32
-#include <Windows.h>
-#else
-#include <unistd.h>
-#endif
-#include <config.h>
+// #ifdef _WIN32
+// #include <Windows.h>
+// #else
+// #include <unistd.h>
+// #endif
+// #include <config.h>
 #if defined(HAVE_PTHREAD) || defined(_WIN32)
 #include "ndi-rist-encoder.h"
 #include <FL/Fl.H>
@@ -15,7 +15,7 @@
 #include <chrono>
 #include <thread>
 #include <fmt/core.h>
-#include <threads.h>
+#include <thread>
 #include <gst/gst.h>
 #include <gst/rtp/rtp.h>
 #include <gst/app/gstappsink.h>
@@ -98,11 +98,6 @@ int main(int argc, char **argv)
 		encodeThread.join();
 	}
 
-	if (ristThread.joinable())
-	{
-		ristThread.join();
-	}
-
 	return result;
 }
 
@@ -133,42 +128,41 @@ static uint64_t risttools_convertAudioRTPtoNTP(uint32_t i_rtp)
 	return i_ntp;
 }
 
-void sendBufferToRist(GstBuffer *buffer)
+gboolean sendBufferToRist(GstBuffer **buffer,
+						  guint idx,
+						  gpointer user_data)
 {
 	GstRTPBuffer rtp = GST_RTP_BUFFER_INIT;
-	GstMemory *memory;
 	GstMapInfo info;
 
-	gst_buffer_map(buffer, &info, GST_MAP_READ);
+	gst_buffer_map(*buffer, &info, GST_MAP_READ);
 	gsize &buf_size = info.size;
 	guint8 *&buf_data = info.data;
 	auto streamId = NULL;
-	if (gst_rtp_buffer_map(buffer, GST_MAP_READ, &rtp))
-	{
-			guint8 rtp_payloadType = gst_rtp_buffer_get_payload_type(&rtp);
-	guint32 rtp_ts = gst_rtp_buffer_get_timestamp(&rtp);
-	
-	switch (rtp_payloadType)
-	{
-	case 97:
-		streamId = 2000;
-		break;
+	// if (gst_rtp_buffer_map(buffer, GST_MAP_READ, &rtp))
+	// {
+	// 		guint8 rtp_payloadType = gst_rtp_buffer_get_payload_type(&rtp);
+	// guint32 rtp_ts = gst_rtp_buffer_get_timestamp(&rtp);
 
-	case 96:
-		streamId = 1000;
-		break;
-	
-	default:
-		break;
-	}
-	gst_rtp_buffer_unmap(&rtp);
-	}
-	
-	app.ristSender.sendData(buf_data, buf_size, 0,
-							streamId);
+	// switch (rtp_payloadType)
+	// {
+	// case 97:
+	// 	streamId = 2000;
+	// 	break;
 
-	
-	gst_buffer_unmap(buffer, &info);
+	// case 96:
+	// 	streamId = 1000;
+	// 	break;
+
+	// default:
+	// 	break;
+	// }
+	// gst_rtp_buffer_unmap(&rtp);
+	// }
+
+	app.ristSender.sendData(buf_data, buf_size);
+
+	return true;
 }
 
 static GstFlowReturn
@@ -176,13 +170,18 @@ on_new_sample_from_sink(GstElement *elt, App *app)
 {
 	GstSample *sample;
 	GstBuffer *buffer;
+	GstBufferList *bufferlist;
 
 	/* get the sample from appsink */
 	sample = gst_app_sink_pull_sample(GST_APP_SINK(elt));
 	buffer = gst_sample_get_buffer(sample);
-	if (buffer)
+	bufferlist = gst_sample_get_buffer_list(sample);
+	if (bufferlist)
 	{
-		sendBufferToRist(buffer);
+		gst_buffer_list_foreach(bufferlist,
+								sendBufferToRist,
+								NULL);
+
 		// logAppend("\nPulled no buffers. Exiting...\n");
 		// return GST_FLOW_EOS;
 	}
@@ -224,15 +223,63 @@ datasrc_message(GstBus *bus, GstMessage *message, App *app)
 	return TRUE;
 }
 
-void *startStream(void *p)
+void *runRistVideo()
 {
-	UserInterface *ui = (UserInterface *)p;
-	GstBus *datasrc_bus;
-	GstPad *pad;
-	std::string datasrc_pipeline_str = "";
-	GError *error = NULL;
-	GOptionContext *context;
+	GstSample *sample;
+	GstBuffer *buffer;
+	GstBufferList *bufferlist;
 
+	while (!gst_app_sink_is_eos(GST_APP_SINK(app.videosink)))
+	{
+		/* get the sample from appsink */
+		sample = gst_app_sink_pull_sample(GST_APP_SINK(app.videosink));
+		buffer = gst_sample_get_buffer(sample);
+		bufferlist = gst_sample_get_buffer_list(sample);
+		if (bufferlist)
+		{
+			gst_buffer_list_foreach(bufferlist,
+									sendBufferToRist,
+									NULL);
+
+			// logAppend("\nPulled no buffers. Exiting...\n");
+			// return GST_FLOW_EOS;
+		}
+
+		gst_sample_unref(sample);
+	}
+
+	return 0L;
+}
+
+void *runRistAudio()
+{
+	GstSample *sample;
+	GstBuffer *buffer;
+	GstBufferList *bufferlist;
+
+	while (!gst_app_sink_is_eos(GST_APP_SINK(app.audiosink)))
+	{
+		/* get the sample from appsink */
+		sample = gst_app_sink_pull_sample(GST_APP_SINK(app.audiosink));
+		buffer = gst_sample_get_buffer(sample);
+		bufferlist = gst_sample_get_buffer_list(sample);
+		if (bufferlist)
+		{
+			gst_buffer_list_foreach(bufferlist,
+									sendBufferToRist,
+									NULL);
+
+			// logAppend("\nPulled no buffers. Exiting...\n");
+			// return GST_FLOW_EOS;
+		}
+
+		gst_sample_unref(sample);
+	}
+	return 0L;
+}
+
+void *startRist()
+{
 	// Generate a vector of RIST URL's,  ip(name), ports, RIST URL output, listen(true) or send mode (false)
 	std::string lURL;
 	std::vector<std::tuple<std::string, int>> interfaceListSender;
@@ -243,26 +290,51 @@ void *startStream(void *p)
 
 	// Populate the settings
 	RISTNetSender::RISTNetSenderSettings mySendConfiguration;
+	mySendConfiguration.mProfile = RIST_PROFILE_SIMPLE;
 	app.ristSender.initSender(interfaceListSender, mySendConfiguration);
+
+	ristVideoThread = std::thread(runRistVideo);
+	ristAudioThread = std::thread(runRistAudio);
+
+	if (ristVideoThread.joinable())
+	{
+		ristVideoThread.join();
+	}
+
+	if (ristAudioThread.joinable())
+	{
+		ristAudioThread.join();
+	}
+
+	return 0L;
+}
+
+void *startStream(void *p)
+{
+	UserInterface *ui = (UserInterface *)p;
+	GstBus *datasrc_bus;
+	GstPad *pad;
+	std::string datasrc_pipeline_str = "";
+	GError *error = NULL;
+	GOptionContext *context;
 
 	app.is_eos = FALSE;
 	app.loop = g_main_loop_new(NULL, FALSE);
 
-	datasrc_pipeline_str += fmt::format("multiqueue name=demuxq multiqueue name=outq appsink name=videosink appsink name=audiosink rtpbin name=rtpbin ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
-														  config.ndi_input_name);
-	datasrc_pipeline_str += "demux.audio ! demuxq.sink_0 demuxq.src_0 ! audioresample ! audioconvert ! avenc_aac ! aacparse ! rtpmp4gpay pt=97 ! rtpbin.send_rtp_sink_1 rtpbin.send_rtp_src_1 ! outq.sink_0 outq.src_0 ! audiosink. ";
-
+	datasrc_pipeline_str += fmt::format("multiqueue name=demuxq multiqueue name=outq appsink buffer-list=true name=videosink appsink buffer-list=true name=audiosink ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
+										config.ndi_input_name);
+	datasrc_pipeline_str += "demux.audio ! demuxq.sink_0 demuxq.src_0 ! audioresample ! audioconvert ! voaacenc ! aacparse ! rtpgstpay ! audiosink. ";
 
 	if (config.codec == "h264")
 	{
-		datasrc_pipeline_str += fmt::format("demux.video ! demuxq.sink_1 demuxq.src_1 ! videoconvert ! video/x-raw,format=I420 ! x264enc bitrate={} speed-preset=fast tune=zerolatency ! h264parse ! rtph264pay config-interval=1 aggregate-mode=max-stap pt=96 ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0 ! outq.sink_1 outq.src_1 ! videosink. ", config.bitrate);
+		datasrc_pipeline_str += fmt::format("demux.video ! demuxq.sink_1 demuxq.src_1 ! videoconvert ! video/x-raw,format=I420 ! x264enc bitrate={} speed-preset=fast tune=zerolatency ! h264parse ! rtpgstpay config-interval=1 ! videosink. ", config.bitrate);
 	}
 	else if (config.codec == "h265")
 	{
 		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! video/x-raw,format=I420 ! x265enc bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency ! h265parse ! rtph265pay config-interval=1 aggregate-mode=max pt=96 ! queue ! rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
 	}
 	else if (config.codec == "av1")
-	{	
+	{
 		datasrc_pipeline_str += fmt::format("demux.video ! queue ! videoconvert ! av1enc bitrate={} cpu-used=9 usage-profile=realtime tile-columns=2 tile-rows=2 ! av1parse ! rtpav1pay ! queue ! rtpbin.send_rtp_sink_0  rtpbin.send_rtp_src_0 ! queue ! videosink. ", config.bitrate);
 	}
 
@@ -280,24 +352,24 @@ void *startStream(void *p)
 	gst_bus_add_watch(datasrc_bus, (GstBusFunc)datasrc_message, &app);
 	gst_object_unref(datasrc_bus);
 
-	app.fallbackVideo = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "fallbackvideo");
-	app.fallbackAudio = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "fallbackaudio");
+	// app.fallbackVideo = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "fallbackvideo");
+	// app.fallbackAudio = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "fallbackaudio");
 
-
-	/* set up appsink */
+	// /* set up appsink */
 	app.videosink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "videosink");
-	g_object_set(G_OBJECT(app.videosink), "emit-signals", TRUE, "sync", FALSE,
-				 NULL);
-	g_signal_connect(app.videosink, "new-sample",
-					 G_CALLBACK(on_new_sample_from_sink), &app);
+	// g_object_set(G_OBJECT(app.videosink), "emit-signals", TRUE, "sync", FALSE,
+	// 			 NULL);
+	// g_signal_connect(app.videosink, "new-sample",
+	// 				 G_CALLBACK(on_new_sample_from_sink), &app);
 
-	/* set up appsink */
+	// /* set up appsink */
 	app.audiosink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "audiosink");
-	g_object_set(G_OBJECT(app.audiosink), "emit-signals", TRUE, "sync", FALSE,
-				 NULL);
-	g_signal_connect(app.audiosink, "new-sample",
-					 G_CALLBACK(on_new_sample_from_sink), &app);
-	
+	// g_object_set(G_OBJECT(app.audiosink), "emit-signals", TRUE, "sync", FALSE,
+	// 			 NULL);
+	// g_signal_connect(app.audiosink, "new-sample",
+	// 				 G_CALLBACK(on_new_sample_from_sink), &app);
+
+	ristThread = std::thread(startRist);
 	logAppend("Changing state of datasrc_pipeline to PLAYING...\n");
 
 	/* only start datasrc_pipeline to ensure we have enough data before
@@ -313,6 +385,11 @@ void *startStream(void *p)
 	gst_element_set_state(app.datasrc_pipeline, GST_STATE_NULL);
 
 	g_main_loop_unref(app.loop);
+
+	if (ristThread.joinable())
+	{
+		ristThread.join();
+	}
 
 	return 0L;
 }
@@ -384,7 +461,8 @@ void preview_cb(Fl_Button *o, void *v)
 	previewThread = std::thread(previewNDISource, ui);
 }
 
-void streamSource_cb(Fl_Button*, void*) {
+void streamSource_cb(Fl_Button *, void *)
+{
 	auto *audioPad = gst_element_get_static_pad(app.fallbackAudio, "sink_0");
 	auto *videoPad = gst_element_get_static_pad(app.fallbackVideo, "sink_0");
 
@@ -395,7 +473,8 @@ void streamSource_cb(Fl_Button*, void*) {
 	gst_object_unref(videoPad);
 }
 
-void streamStandby_cb(Fl_Button*, void*) {
+void streamStandby_cb(Fl_Button *, void *)
+{
 	auto *audioPad = gst_element_get_static_pad(app.fallbackAudio, "sink_1");
 	auto *videoPad = gst_element_get_static_pad(app.fallbackVideo, "sink_1");
 
