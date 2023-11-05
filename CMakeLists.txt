@@ -2,13 +2,13 @@
 # project specific logic here.
 #
 cmake_minimum_required (VERSION 3.10)
-set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake"
-  CACHE STRING "Vcpkg toolchain file")
+
 project (ndi-rist-encoder)
 
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -16,10 +16,11 @@ include(ExternalProject)
 #Include libristnet
 ExternalProject_Add(project_libristnet
         GIT_REPOSITORY https://github.com/patcarter883/rist-cpp.git
+        GIT_TAG swxtch
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap
         BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap
         GIT_PROGRESS 1
-        CONFIGURE_COMMAND cmake -DCMAKE_BUILD_TYPE=Debug -S${CMAKE_CURRENT_SOURCE_DIR}/ristwrap -B${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/build -G "NMake Makefiles"
+        CONFIGURE_COMMAND cmake -DCMAKE_TOOLCHAIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S${CMAKE_CURRENT_SOURCE_DIR}/ristwrap -B${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/build -G "NMake Makefiles"
         BUILD_COMMAND cmake --build ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/build --config ${CMAKE_BUILD_TYPE} --target ristnet
         STEP_TARGETS build
         EXCLUDE_FROM_ALL TRUE
@@ -39,6 +40,7 @@ find_package(NDI REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(FLTK CONFIG REQUIRED)
 find_package(GStreamer REQUIRED)
+find_package (Threads)
 
 # Add source to this project's executable.
 add_executable (ndi_rist_encoder WIN32 "ndi-rist-encoder.cpp" "ndi-rist-encoder.h")
@@ -59,7 +61,7 @@ target_link_libraries(ndi_rist_encoder PRIVATE fltk fltk_gl fltk_forms fltk_imag
 target_link_libraries(ndi_rist_encoder PRIVATE ristnet ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/build/librist.a) 
 target_link_libraries(ndi_rist_encoder PRIVATE ${NDI_LIBRARIES}) 
 target_link_libraries(ndi_rist_encoder PRIVATE ${GSTREAMER_LIBRARIES}) 
-target_link_libraries(ndi_rist_encoder PRIVATE iphlpapi wsock32 ws2_32)
+target_link_libraries(ndi_rist_encoder PRIVATE iphlpapi wsock32 ws2_32 Threads::Threads)
 
 # target_link_libraries(rist_restreamer
 #   fmt::fmt

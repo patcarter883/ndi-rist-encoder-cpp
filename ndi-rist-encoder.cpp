@@ -15,15 +15,16 @@
 #include <chrono>
 #include <thread>
 #include <fmt/core.h>
-#include <thread>
 #include <gst/gst.h>
 #include <gst/rtp/rtp.h>
 #include <gst/app/gstappsink.h>
 #include <gst/allocators/gstdmabuf.h>
 #include <gst/video/video.h>
+#include <utility>
 
 UserInterface *ui = new UserInterface;
 Fl_Text_Buffer *logBuff = new Fl_Text_Buffer();
+Fl_Text_Buffer *ristLogBuff = new Fl_Text_Buffer();
 
 /* Structure to contain all our information, so we can pass it to callbacks */
 typedef struct _App App;
@@ -35,9 +36,10 @@ struct _App
 	GstDeviceMonitor *monitor;
 
 	gboolean is_eos;
+	gboolean isRunning;
 	GMainLoop *loop;
 
-	RISTNetSender ristSender;
+	RISTNetSender *ristSender;
 
 	gboolean isPlaying = false;
 };
@@ -59,6 +61,7 @@ struct _Config
 	std::string rist_output_bandwidth;
 };
 
+
 /* Globals */
 Config config;
 App app;
@@ -77,6 +80,7 @@ int main(int argc, char **argv)
 
 	Fl::lock();
 	ui->logDisplay->buffer(logBuff);
+	ui->ristLogDisplay->buffer(ristLogBuff);
 	ui->show(argc, argv);
 
 	findNdiThread = std::thread(findNdiDevices, ui);
@@ -110,6 +114,14 @@ void logAppend(std::string logMessage)
 	Fl::awake();
 }
 
+void ristLogAppend(std::string logMessage)
+{
+	Fl::lock();
+	ui->ristLogDisplay->insert(logMessage.c_str());
+	Fl::unlock();
+	Fl::awake();
+}
+
 static uint64_t risttools_convertVideoRTPtoNTP(uint32_t i_rtp)
 {
 	uint64_t i_ntp;
@@ -128,67 +140,39 @@ static uint64_t risttools_convertAudioRTPtoNTP(uint32_t i_rtp)
 	return i_ntp;
 }
 
-gboolean sendBufferToRist(GstBuffer **buffer,
-						  guint idx,
-						  gpointer user_data)
+static gboolean sendBufferToRist(GstBuffer *buffer, RISTNetSender *sender, uint16_t streamId)
 {
 	GstRTPBuffer rtp = GST_RTP_BUFFER_INIT;
 	GstMapInfo info;
 
-	gst_buffer_map(*buffer, &info, GST_MAP_READ);
+	gst_buffer_map(buffer, &info, GST_MAP_READ);
 	gsize &buf_size = info.size;
 	guint8 *&buf_data = info.data;
-	auto streamId = NULL;
-	// if (gst_rtp_buffer_map(buffer, GST_MAP_READ, &rtp))
-	// {
-	// 		guint8 rtp_payloadType = gst_rtp_buffer_get_payload_type(&rtp);
-	// guint32 rtp_ts = gst_rtp_buffer_get_timestamp(&rtp);
 
-	// switch (rtp_payloadType)
-	// {
-	// case 97:
-	// 	streamId = 2000;
-	// 	break;
-
-	// case 96:
-	// 	streamId = 1000;
-	// 	break;
-
-	// default:
-	// 	break;
-	// }
-	// gst_rtp_buffer_unmap(&rtp);
-	// }
-
-	app.ristSender.sendData(buf_data, buf_size);
+	sender->sendData(buf_data, buf_size, 0, streamId);
 
 	return true;
 }
 
-static GstFlowReturn
-on_new_sample_from_sink(GstElement *elt, App *app)
-{
-	GstSample *sample;
-	GstBuffer *buffer;
-	GstBufferList *bufferlist;
+// static GstFlowReturn
+// on_new_sample_from_sink(GstElement *elt, RISTNetSender *sender)
+// {
+// 	GstSample *sample;
+// 	GstBuffer *buffer;
 
-	/* get the sample from appsink */
-	sample = gst_app_sink_pull_sample(GST_APP_SINK(elt));
-	buffer = gst_sample_get_buffer(sample);
-	bufferlist = gst_sample_get_buffer_list(sample);
-	if (bufferlist)
-	{
-		gst_buffer_list_foreach(bufferlist,
-								sendBufferToRist,
-								NULL);
+// 	/* get the sample from appsink */
+// 	sample = gst_app_sink_pull_sample(GST_APP_SINK(elt));
+// 	buffer = gst_sample_get_buffer(sample);
+// 	if (buffer)
+// 	{
+// 		sendBufferToRist(buffer, sender);
+// 		// logAppend("\nPulled no buffers. Exiting...\n");
+// 		// return GST_FLOW_EOS;
+// 	}
 
-		// logAppend("\nPulled no buffers. Exiting...\n");
-		// return GST_FLOW_EOS;
-	}
-
-	gst_sample_unref(sample);
-	return GST_FLOW_OK;
-}
+// 	gst_sample_unref(sample);
+// 	return GST_FLOW_OK;
+// }
 
 static gboolean
 datasrc_message(GstBus *bus, GstMessage *message, App *app)
@@ -223,23 +207,20 @@ datasrc_message(GstBus *bus, GstMessage *message, App *app)
 	return TRUE;
 }
 
-void *runRistVideo()
+void *runRistVideo(RISTNetSender *sender)
 {
+
 	GstSample *sample;
 	GstBuffer *buffer;
-	GstBufferList *bufferlist;
 
-	while (!gst_app_sink_is_eos(GST_APP_SINK(app.videosink)))
+	while (app.isRunning)
 	{
 		/* get the sample from appsink */
 		sample = gst_app_sink_pull_sample(GST_APP_SINK(app.videosink));
 		buffer = gst_sample_get_buffer(sample);
-		bufferlist = gst_sample_get_buffer_list(sample);
-		if (bufferlist)
+		if (buffer)
 		{
-			gst_buffer_list_foreach(bufferlist,
-									sendBufferToRist,
-									NULL);
+			sendBufferToRist(buffer, sender, 1000);
 
 			// logAppend("\nPulled no buffers. Exiting...\n");
 			// return GST_FLOW_EOS;
@@ -251,23 +232,21 @@ void *runRistVideo()
 	return 0L;
 }
 
-void *runRistAudio()
+void *runRistAudio(RISTNetSender *sender)
 {
+
 	GstSample *sample;
 	GstBuffer *buffer;
-	GstBufferList *bufferlist;
 
-	while (!gst_app_sink_is_eos(GST_APP_SINK(app.audiosink)))
+	while (app.isRunning)
 	{
 		/* get the sample from appsink */
 		sample = gst_app_sink_pull_sample(GST_APP_SINK(app.audiosink));
 		buffer = gst_sample_get_buffer(sample);
-		bufferlist = gst_sample_get_buffer_list(sample);
-		if (bufferlist)
+		if (buffer)
 		{
-			gst_buffer_list_foreach(bufferlist,
-									sendBufferToRist,
-									NULL);
+			
+			sendBufferToRist(buffer, sender, 1002);
 
 			// logAppend("\nPulled no buffers. Exiting...\n");
 			// return GST_FLOW_EOS;
@@ -278,56 +257,59 @@ void *runRistAudio()
 	return 0L;
 }
 
-void *startRist()
-{
-	// Generate a vector of RIST URL's,  ip(name), ports, RIST URL output, listen(true) or send mode (false)
-	std::string lURL;
-	std::vector<std::tuple<std::string, int>> interfaceListSender;
-	if (RISTNetTools::buildRISTURL(config.rist_output_address, config.rist_output_port, lURL, false))
-	{
-		interfaceListSender.push_back(std::tuple<std::string, int>(lURL, 5));
-	}
+void gotRistStatistics(const rist_stats& statistics) {
+	// ristLogAppend(statistics.stats_json);
 
-	// Populate the settings
-	RISTNetSender::RISTNetSenderSettings mySendConfiguration;
-	mySendConfiguration.mProfile = RIST_PROFILE_SIMPLE;
-	app.ristSender.initSender(interfaceListSender, mySendConfiguration);
+	Fl::lock();
+	ui->bitrateOutput->value(std::to_string(statistics.stats.sender_peer.bandwidth).c_str());
+	ui->linkQualityOutput->value(std::to_string(statistics.stats.sender_peer.quality).c_str());
+	ui->recoveredPacketsOutput->value(std::to_string(statistics.stats.sender_peer.retransmitted).c_str());
+	ui->rttOutput->value(std::to_string(statistics.stats.sender_peer.rtt).c_str());
+	Fl::unlock();
+	Fl::awake();
+}
 
-	ristVideoThread = std::thread(runRistVideo);
-	ristAudioThread = std::thread(runRistAudio);
+int ristLog(void* arg, enum rist_log_level, const char* msg){
+	ristLogAppend(msg);
 
-	if (ristVideoThread.joinable())
-	{
-		ristVideoThread.join();
-	}
-
-	if (ristAudioThread.joinable())
-	{
-		ristAudioThread.join();
-	}
-
-	return 0L;
+	return 1;
 }
 
 void *startStream(void *p)
 {
 	UserInterface *ui = (UserInterface *)p;
 	GstBus *datasrc_bus;
-	GstPad *pad;
 	std::string datasrc_pipeline_str = "";
 	GError *error = NULL;
-	GOptionContext *context;
 
 	app.is_eos = FALSE;
 	app.loop = g_main_loop_new(NULL, FALSE);
 
-	datasrc_pipeline_str += fmt::format("multiqueue name=demuxq multiqueue name=outq appsink buffer-list=true name=videosink appsink buffer-list=true name=audiosink ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
+	RISTNetSender thisRistSender;
+	RISTNetSender::RISTNetSenderSettings mySendConfiguration;
+
+		// Generate a vector of RIST URL's,  ip(name), ports, RIST URL output, listen(true) or send mode (false)
+	std::string lURL = fmt::format("rist://{}:{}", config.rist_output_address, config.rist_output_port);
+	std::vector<std::tuple<std::string, int>> interfaceListSender;
+	// if (RISTNetTools::buildRISTURL(config.rist_output_address, config.rist_output_port, lURL, false))
+	// {
+		interfaceListSender.push_back(std::tuple<std::string, int>(lURL, 0));
+	// }
+
+	thisRistSender.statisticsCallback = gotRistStatistics;
+	
+	mySendConfiguration.mLogLevel = RIST_LOG_DEBUG;
+	mySendConfiguration.mLogSetting.get()->log_cb = *ristLog;
+	thisRistSender.initSender(interfaceListSender, mySendConfiguration);
+	
+
+	datasrc_pipeline_str += fmt::format("multiqueue name=demuxq multiqueue name=outq appsink name=videosink appsink name=audiosink ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
 										config.ndi_input_name);
-	datasrc_pipeline_str += "demux.audio ! demuxq.sink_0 demuxq.src_0 ! audioresample ! audioconvert ! voaacenc ! aacparse ! rtpgstpay ! audiosink. ";
+	datasrc_pipeline_str += "demux.audio ! demuxq.sink_0 demuxq.src_0 ! audioresample ! audioconvert ! voaacenc ! aacparse ! rtpmp4gpay pt=97 ! audiosink. ";
 
 	if (config.codec == "h264")
 	{
-		datasrc_pipeline_str += fmt::format("demux.video ! demuxq.sink_1 demuxq.src_1 ! videoconvert ! video/x-raw,format=I420 ! x264enc bitrate={} speed-preset=fast tune=zerolatency ! h264parse ! rtpgstpay config-interval=1 ! videosink. ", config.bitrate);
+		datasrc_pipeline_str += fmt::format("demux.video ! demuxq.sink_1 demuxq.src_1 ! videoconvert ! video/x-raw,format=I420 ! x264enc bitrate={} speed-preset=fast tune=zerolatency ! h264parse ! rtph264pay config-interval=1 ! videosink. ", config.bitrate);
 	}
 	else if (config.codec == "h265")
 	{
@@ -360,16 +342,18 @@ void *startStream(void *p)
 	// g_object_set(G_OBJECT(app.videosink), "emit-signals", TRUE, "sync", FALSE,
 	// 			 NULL);
 	// g_signal_connect(app.videosink, "new-sample",
-	// 				 G_CALLBACK(on_new_sample_from_sink), &app);
+	// 				 G_CALLBACK(on_new_sample_from_sink), &thisRistSender);
 
 	// /* set up appsink */
 	app.audiosink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "audiosink");
 	// g_object_set(G_OBJECT(app.audiosink), "emit-signals", TRUE, "sync", FALSE,
 	// 			 NULL);
 	// g_signal_connect(app.audiosink, "new-sample",
-	// 				 G_CALLBACK(on_new_sample_from_sink), &app);
-
-	ristThread = std::thread(startRist);
+	// 				 G_CALLBACK(on_new_sample_from_sink), &thisRistSender);
+	app.isPlaying = true;
+	ristVideoThread = std::thread(runRistVideo, &thisRistSender);
+	ristAudioThread = std::thread(runRistAudio, &thisRistSender);
+	
 	logAppend("Changing state of datasrc_pipeline to PLAYING...\n");
 
 	/* only start datasrc_pipeline to ensure we have enough data before
@@ -377,19 +361,25 @@ void *startStream(void *p)
 	 */
 
 	gst_element_set_state(app.datasrc_pipeline, GST_STATE_PLAYING);
-	app.isPlaying = true;
+	
 	g_main_loop_run(app.loop);
 	app.isPlaying = false;
+	gst_element_set_state(app.datasrc_pipeline, GST_STATE_NULL);
 	logAppend("stopping...\n");
 
-	gst_element_set_state(app.datasrc_pipeline, GST_STATE_NULL);
-
+	gst_object_unref (GST_OBJECT (app.datasrc_pipeline));
 	g_main_loop_unref(app.loop);
 
-	if (ristThread.joinable())
+	if (ristVideoThread.joinable())
 	{
-		ristThread.join();
+		ristVideoThread.join();
 	}
+	if (ristAudioThread.joinable())
+	{
+		ristAudioThread.join();
+	}
+
+	thisRistSender.destroySender();
 
 	return 0L;
 }
@@ -397,7 +387,7 @@ void *startStream(void *p)
 void *previewNDISource(void *p)
 {
 	UserInterface *ui = (UserInterface *)p;
-	GstElement *pipeline, *ndisrc, *ndidemux, *conv, *videosink;
+	GstElement *pipeline;
 	GstBus *bus;
 	GstMessage *msg;
 
@@ -487,23 +477,30 @@ void streamStandby_cb(Fl_Button *, void *)
 
 void startStream_cb(Fl_Button *o, void *v)
 {
+
+	app.isRunning = true;
 	if (encodeThread.joinable())
 	{
 		encodeThread.join();
 	}
 
 	encodeThread = std::thread(startStream, ui);
+
 	Fl::lock();
 	o->deactivate();
 	ui->btnStopStream->activate();
 	Fl::unlock();
 	Fl::awake();
+	
 }
 
 void stopStream_cb(Fl_Button *o, void *v)
 {
-	if (g_main_loop_is_running(app.loop))
+	app.isRunning = false;
+	if (g_main_loop_is_running(app.loop)){
 		g_main_loop_quit(app.loop);
+	}
+
 	Fl::lock();
 	o->deactivate();
 	ui->btnStartStream->activate();

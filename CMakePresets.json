@@ -6,6 +6,7 @@
             "hidden": true,
             "generator": "NMake Makefiles",
             "binaryDir": "${sourceDir}/build/${presetName}",
+            "toolchainFile": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
             "architecture": {
                 "value": "x64",
                 "strategy": "external"
@@ -21,8 +22,11 @@
             "hidden": true,
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/${presetName}",
-            "toolchainFile": "${sourceDir}/mingw-ucrt.cmake",
+            "toolchainFile": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
             "cmakeExecutable": "C:\\msys64\\ucrt64\\bin\\cmake.exe",
+            "cacheVariables": {
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/mingw-ucrt.cmake"
+            },
             "architecture": {
                 "value": "x64",
                 "strategy": "external"
