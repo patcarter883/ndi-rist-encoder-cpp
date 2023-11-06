@@ -7,129 +7,196 @@ class UserInterface {open
   Function {UserInterface()} {open
   } {
     Fl_Window mainWindow {
-      label {NDI RIST Encoder} open
-      xywh {372 198 1175 613} type Double resizable visible
+      label {NDI RIST Encoder} open selected
+      xywh {645 179 1175 724} type Double resizable visible
     } {
       Fl_Group inputGroup {
         label Input
-        xywh {25 25 266 199}
+        xywh {10 25 266 199}
       } {
         Fl_Button previewSourceBtn {
           label {Preview Source}
           callback preview_cb
-          xywh {79 113 185 22}
+          xywh {64 113 185 22}
         }
         Fl_Choice ndiSourceSelect {
           label {NDI Source}
-          xywh {119 53 140 22} down_box BORDER_BOX
+          xywh {104 53 140 22} down_box BORDER_BOX
         } {}
         Fl_Button btnRefreshSources {
           label {Refresh Sources}
           callback refreshSources_cb
-          xywh {79 83 185 22}
+          xywh {64 83 185 22}
         }
         Fl_Button {} {
           label {Stream Source}
           callback streamSource_cb
-          xywh {78 164 190 21}
+          xywh {63 164 190 21}
         }
         Fl_Button {} {
           label {Stream Standby}
           callback streamStandby_cb
-          xywh {78 193 190 22}
+          xywh {63 193 190 22}
         }
       }
-      Fl_Group encodeGroup {
-        label Encode
-        xywh {280 23 250 192}
+      Fl_Group {} {open
+        xywh {293 23 252 212}
       } {
-        Fl_Choice codecSelect {
-          label Codec open
-          xywh {359 48 92 22} down_box BORDER_BOX
+        Fl_Group encodeGroup {
+          label Encode open
+          xywh {294 23 250 97}
         } {
-          MenuItem h264CodecChoice {
-            label H264
-            user_data {"h264"}
-            callback select_codec_cb
-            xywh {0 0 100 20}
+          Fl_Choice codecSelect {
+            label Codec
+            xywh {365 48 92 22} down_box BORDER_BOX
+          } {
+            MenuItem h264CodecChoice {
+              label H264
+              user_data {"h264"}
+              callback select_codec_cb
+              xywh {0 0 100 20}
+            }
+            MenuItem h265CodecChoice {
+              label H265
+              user_data {"h265"}
+              callback select_codec_cb
+              xywh {0 0 100 20}
+            }
+            MenuItem av1CodecChoice {
+              label AV1
+              user_data {"av1"}
+              callback select_codec_cb
+              xywh {0 0 100 20}
+            }
           }
-          MenuItem h265CodecChoice {
-            label H265
-            user_data {"h265"}
-            callback select_codec_cb
-            xywh {0 0 100 20}
+          Fl_Choice encoderSelect {
+            label Encoder open
+            xywh {366 73 92 22} down_box BORDER_BOX
+          } {
+            MenuItem softwareEncoderChoice {
+              label Software
+              user_data {"software"}
+              callback select_encoder_cb
+              xywh {10 10 100 20}
+            }
+            MenuItem amdEncoderChoice {
+              label AMD
+              user_data {"amd"}
+              callback select_encoder_cb
+              xywh {10 10 100 20}
+            }
+            MenuItem qsvEncoderChoice {
+              label {Intel QSV}
+              user_data {"qsv"}
+              callback select_encoder_cb
+              xywh {10 10 100 20}
+            }
+            MenuItem nvencEncoderChoice {
+              label {Nvidia NVENC}
+              user_data {"nvenc"}
+              callback select_encoder_cb
+              xywh {20 20 100 20}
+            }
           }
-          MenuItem av1CodecChoice {
-            label AV1
-            user_data {"av1"}
-            callback select_codec_cb
-            xywh {0 0 100 20}
+          Fl_Input encoderBitrateInput {
+            label {Video Bitrate}
+            callback encoder_bitrate_cb
+            xywh {366 96 90 24}
+          }
+        }
+        Fl_Group transportGroup {
+          label Transport open
+          xywh {294 156 250 79}
+        } {
+          Fl_Choice transportSelect {open
+            xywh {301 175 156 22} down_box BORDER_BOX
+          } {
+            MenuItem m2tsTransportChoice {
+              label {MPEG TS}
+              user_data {"m2ts"}
+              callback select_transport_cb
+              xywh {0 0 100 20}
+            }
+            MenuItem rtpTransportChoice {
+              label RTP
+              user_data {"rtp"}
+              callback select_transport_cb
+              xywh {0 0 100 20}
+            }
           }
         }
       }
       Fl_Group outputGroup {
-        label Output open
-        xywh {520 20 266 195}
+        label Output
+        xywh {562 20 266 195}
       } {
         Fl_Input ristAddressInput {
           label Address
           callback rist_address_cb
-          xywh {568 47 218 22}
+          xywh {610 47 218 22}
         }
         Fl_Input ristPortInput {
           label Port
           callback rist_port_cb
-          xywh {568 77 92 22}
+          xywh {610 77 92 22}
         }
         Fl_Input ristBufferInput {
           label Buffer
           callback rist_buffer_cb
-          xywh {568 107 92 22}
+          xywh {610 107 92 22}
         }
         Fl_Input ristBandwidthInput {
           label Bandwidth
           callback rist_bandwidth_cb
-          xywh {568 137 92 22}
+          xywh {610 137 92 22}
         }
         Fl_Button btnStartStream {
           label {Start Stream}
           callback startStream_cb
-          xywh {568 167 218 22}
+          xywh {610 167 218 22}
         }
         Fl_Button btnStopStream {
           label {Stop Stream}
           callback stopStream_cb
-          xywh {568 193 218 22} deactivate
+          xywh {610 193 218 22} deactivate
         }
       }
       Fl_Group statsGroup {
-        label Stats open
-        xywh {845 20 266 195}
+        label Stats
+        xywh {845 20 266 200}
       } {
-        Fl_Output bitrateOutput {
-          label Bitrate
+        Fl_Output bandwidthOutput {
+          label Bandwidth
           xywh {940 45 165 24}
         }
         Fl_Output linkQualityOutput {
           label {Link Quality}
           xywh {940 71 165 24}
         }
-        Fl_Output recoveredPacketsOutput {
-          label {Recovered Packets}
+        Fl_Output retransmittedPacketsOutput {
+          label {Retransmitted Packets}
           xywh {940 96 165 24}
         }
         Fl_Output rttOutput {
-          label RTT selected
+          label RTT
+          xywh {940 146 165 24}
+        }
+        Fl_Output totalPacketsOutput {
+          label {Total Packets}
           xywh {940 121 165 24}
+        }
+        Fl_Output encodeBitrateOutput {
+          label {Encode Bitrate}
+          xywh {940 196 165 24}
         }
       }
       Fl_Text_Display logDisplay {
         label Log
-        xywh {25 242 1132 164}
+        xywh {21 358 1132 164}
       }
       Fl_Text_Display ristLogDisplay {
         label {RIST Log}
-        xywh {26 431 1132 164}
+        xywh {22 547 1132 164}
       }
     }
   }

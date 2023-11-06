@@ -14,18 +14,18 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(ExternalProject)
 #Include libristnet
-ExternalProject_Add(project_libristnet
-        GIT_REPOSITORY https://github.com/patcarter883/rist-cpp.git
-        GIT_TAG swxtch
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap
-        BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap
-        GIT_PROGRESS 1
-        CONFIGURE_COMMAND cmake -DCMAKE_TOOLCHAIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S${CMAKE_CURRENT_SOURCE_DIR}/ristwrap -B${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/build -G "NMake Makefiles"
-        BUILD_COMMAND cmake --build ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/build --config ${CMAKE_BUILD_TYPE} --target ristnet
-        STEP_TARGETS build
-        EXCLUDE_FROM_ALL TRUE
-        INSTALL_COMMAND ""
-        )
+# ExternalProject_Add(project_libristnet
+#         GIT_REPOSITORY https://github.com/patcarter883/rist-cpp.git
+#         GIT_TAG swxtch
+#         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap
+#         BINARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap
+#         GIT_PROGRESS 1
+#         CONFIGURE_COMMAND cmake -DCMAKE_TOOLCHAIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S${CMAKE_CURRENT_SOURCE_DIR}/ristwrap -B${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/build -G "NMake Makefiles"
+#         BUILD_COMMAND cmake --build ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/build --config ${CMAKE_BUILD_TYPE} --target ristnet
+#         STEP_TARGETS build
+#         EXCLUDE_FROM_ALL TRUE
+#         INSTALL_COMMAND ""
+#         )
 
 add_library(ristnet STATIC IMPORTED)
 set_property(TARGET ristnet PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/build/ristnet.lib)
