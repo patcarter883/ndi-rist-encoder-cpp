@@ -8,7 +8,6 @@
 // #include <unistd.h>
 // #endif
 // #include <config.h>
-#if defined(HAVE_PTHREAD) || defined(_WIN32)
 #include "ndi-rist-encoder.h"
 #include <FL/Fl.H>
 #include "UserInterface.cxx"
@@ -768,4 +767,3 @@ void *findNdiDevices(void *p)
 
 	return 0L;
 }
-#endif // HAVE_PTHREAD || _WIN32

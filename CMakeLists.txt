@@ -16,8 +16,6 @@ add_executable (ndi_rist_encoder WIN32 "ndi-rist-encoder.cpp" "ndi-rist-encoder.
 # add_executable (rist_restreamer WIN32 "rist-restreamer.cpp" "rist-restreamer.h" )
 
 include(ExternalProject)
-
-
     
 #Include libristnet
 ExternalProject_Add(project_libristnet
@@ -34,7 +32,12 @@ ExternalProject_Add(project_libristnet
         )
 
 add_library(ristnet STATIC IMPORTED)
-set_property(TARGET ristnet PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/build/ristnet.lib)
+if (${WIN32})
+    set(RIST_LIB_NAME ristnet.lib)
+else()
+    set(RIST_LIB_NAME libristnet.a)
+endif()
+set_property(TARGET ristnet PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/build/${RIST_LIB_NAME})
 
 
 #Pass information about where to find headers
