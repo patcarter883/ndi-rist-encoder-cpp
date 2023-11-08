@@ -1,4 +1,4 @@
-﻿// gst-launch-1.0 -v multiqueue name=demuxq multiqueue name=outq udpsrc port=6000 caps="application/x-rtp, media=(string)application, clock-rate=(int)90000, encoding-name=(string)X-GST" ! demuxq.sink_0 demuxq.src_0 ! rtpgstdepay ! h264parse ! queue ! avdec_h264 ! videoconvert ! outq.sink_0 outq.src_0 ! autovideosink udpsrc port=6002 caps="application/x-rtp, media=(string)application, clock-rate=(int)90000, encoding-name=(string)X-GST" ! demuxq.sink_1 demuxq.src_1 ! rtpgstdepay ! aacparse ! queue ! avdec_aac ! audioconvert ! outq.sink_1 outq.src_1 ! autoaudiosink
+﻿// gst-launch-1.0 -v multiqueue name=outq udpsrc port=6000 caps="application/x-rtp, media=(string)application, clock-rate=(int)90000, encoding-name=(string)X-GST" ! rtpjitterbuffer ! rtpgstdepay ! h264parse ! queue ! avdec_h264 ! videoconvert ! outq.sink_0 outq.src_0 ! autovideosink udpsrc port=6002 caps="application/x-rtp, media=(string)application, clock-rate=(int)90000, encoding-name=(string)X-GST" ! rtpjitterbuffer ! rtpgstdepay ! aacparse ! queue ! avdec_aac ! audioconvert ! outq.sink_1 outq.src_1 ! autoaudiosink
 
 // ndi-rist-encoder.cpp : Defines the entry point for the application.
 //
