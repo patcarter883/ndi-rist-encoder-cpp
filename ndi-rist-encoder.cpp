@@ -1,4 +1,4 @@
-﻿// gst-launch-1.0 -v multiqueue name=demuxq multiqueue name=outq udpsrc port=6000 caps="application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! demuxq.sink_0 demuxq.src_0 ! rtph264depay ! h264parse ! queue ! avdec_h264 ! videoconvert ! outq.sink_0 outq.src_0 ! autovideosink udpsrc port=6002 caps="application/x-rtp, media=(string)audio, clock-rate=(int)48000, encoding-name=(string)MPEG4-GENERIC, encoding-params=(string)2, streamtype=(string)5, profile-level-id=(string)2, mode=(string)AAC-hbr, config=(string)119056e500, sizelength=(string)13, indexlength=(string)3, indexdeltalength=(string)3" ! demuxq.sink_1 demuxq.src_1 ! rtpmp4gdepay ! aacparse ! queue ! avdec_aac ! audioconvert ! outq.sink_1 outq.src_1 ! autoaudiosink
+﻿// gst-launch-1.0 -v multiqueue name=demuxq multiqueue name=outq udpsrc port=6000 caps="application/x-rtp, media=(string)application, clock-rate=(int)90000, encoding-name=(string)X-GST" ! demuxq.sink_0 demuxq.src_0 ! rtpgstdepay ! h264parse ! queue ! avdec_h264 ! videoconvert ! outq.sink_0 outq.src_0 ! autovideosink udpsrc port=6002 caps="application/x-rtp, media=(string)application, clock-rate=(int)90000, encoding-name=(string)X-GST" ! demuxq.sink_1 demuxq.src_1 ! rtpgstdepay ! aacparse ! queue ! avdec_aac ! audioconvert ! outq.sink_1 outq.src_1 ! autoaudiosink
 
 // ndi-rist-encoder.cpp : Defines the entry point for the application.
 //
@@ -118,21 +118,45 @@ int main(int argc, char **argv)
 	return result;
 }
 
-void logAppend(std::string logMessage)
+void logAppend_cb(void *msgPtr)
 {
-	Fl::lock();
-	ui->logDisplay->insert(logMessage.c_str());
+	std::string * msgStr = static_cast<std::string*>(msgPtr);
+	ui->logDisplay->insert(msgStr->c_str());
 	ui->logDisplay->insert("\n");
-	Fl::unlock();
-	Fl::awake();
+	delete msgPtr;
+	return;
 }
 
-void ristLogAppend(std::string logMessage)
+void ristLogAppend_cb(void *msgPtr)
 {
-	Fl::lock();
-	ui->ristLogDisplay->insert(logMessage.c_str());
-	Fl::unlock();
-	Fl::awake();
+	std::string * msgStr = static_cast<std::string*>(msgPtr);
+	ui->ristLogDisplay->insert(msgStr->c_str());
+	delete msgPtr;
+	return;
+}
+
+void logAppend(std::string logMessage)
+{
+	auto *logMessageCpy = new std::string;
+	*logMessageCpy = strdup(logMessage.c_str());
+	Fl::awake(logAppend_cb,logMessageCpy);
+	return;
+}
+
+
+
+void ristLogAppend(const char * logMessage)
+{
+	auto *logMessageCpy = new std::string;
+	*logMessageCpy = strdup(logMessage);
+	Fl::awake(ristLogAppend_cb,logMessageCpy);
+	return;
+}
+
+int ristLog(void *arg, enum rist_log_level, const char *msg)
+{
+	ristLogAppend(msg);
+	return 1;
 }
 
 static uint64_t risttools_convertVideoRTPtoNTP(uint32_t i_rtp)
@@ -285,9 +309,22 @@ void *runRistAudio(RISTNetSender *sender)
 	return 0L;
 }
 
+
+void ristStatistics_cb(void *msgPtr)
+{
+	rist_stats statistics = *(rist_stats*)msgPtr;
+	ui->bandwidthOutput->value(std::to_string(statistics.stats.sender_peer.bandwidth).c_str());
+	ui->linkQualityOutput->value(std::to_string(statistics.stats.sender_peer.quality).c_str());
+	ui->totalPacketsOutput->value(std::to_string(statistics.stats.sender_peer.sent).c_str());
+	ui->retransmittedPacketsOutput->value(std::to_string(statistics.stats.sender_peer.retransmitted).c_str());
+	ui->rttOutput->value(std::to_string(statistics.stats.sender_peer.rtt).c_str());
+	ui->encodeBitrateOutput->value(std::to_string(app.currentBitrate).c_str());
+	delete msgPtr;
+	return;
+}
+
 void gotRistStatistics(const rist_stats &statistics)
 {
-	// ristLogAppend(statistics.stats_json);
 
 	if (app.previousQuality > 0 && (int)statistics.stats.sender_peer.quality != (int)app.previousQuality)
 	{
@@ -303,22 +340,10 @@ void gotRistStatistics(const rist_stats &statistics)
 
 	app.previousQuality = statistics.stats.sender_peer.quality;
 
-	Fl::lock();
-	ui->bandwidthOutput->value(std::to_string(statistics.stats.sender_peer.bandwidth).c_str());
-	ui->linkQualityOutput->value(std::to_string(statistics.stats.sender_peer.quality).c_str());
-	ui->totalPacketsOutput->value(std::to_string(statistics.stats.sender_peer.sent).c_str());
-	ui->retransmittedPacketsOutput->value(std::to_string(statistics.stats.sender_peer.retransmitted).c_str());
-	ui->rttOutput->value(std::to_string(statistics.stats.sender_peer.rtt).c_str());
-	ui->encodeBitrateOutput->value(std::to_string(app.currentBitrate).c_str());
-	Fl::unlock();
-	Fl::awake();
-}
+	rist_stats *p_statistics = new rist_stats;
+	*p_statistics = statistics;
 
-int ristLog(void *arg, enum rist_log_level, const char *msg)
-{
-	ristLogAppend(msg);
-
-	return 1;
+	Fl::awake(ristStatistics_cb, p_statistics);
 }
 
 void *runEncodeThread(void *p)
@@ -365,6 +390,7 @@ void *runEncodeThread(void *p)
 	}
 
 	mySendConfiguration.mLogLevel = RIST_LOG_DEBUG;
+	mySendConfiguration.mProfile = RIST_PROFILE_MAIN;
 	mySendConfiguration.mLogSetting.get()->log_cb = *ristLog;
 	thisRistSender.initSender(interfaceListSender, mySendConfiguration);
 
@@ -373,7 +399,7 @@ void *runEncodeThread(void *p)
 
 	if (config.transport == "m2ts")
 	{
-		datasrc_pipeline_str += " appsink name=videosink mpegtsmux name=tsmux ! videosink. ";
+		datasrc_pipeline_str += " appsink name=videosink mpegtsmux name=tsmux ! tsparse alignment=7 ! videosink. ";
 	}
 
 	if (config.transport == "rtp")
@@ -396,15 +422,15 @@ void *runEncodeThread(void *p)
 	{
 		if (config.codec == "h264")
 		{
-			videoEncoder = fmt::format("amf264enc name=vidEncoder  bitrate={} rate-control=cbr ! h264parse", config.bitrate);
+			videoEncoder = fmt::format("amfh264enc name=vidEncoder  bitrate={} rate-control=cbr usage=low-latency ! h264parse", config.bitrate);
 		}
 		else if (config.codec == "h265")
 		{
-			videoEncoder = fmt::format("amf265enc name=vidEncoder bitrate={} rate-control=cbr ! h265parse", config.bitrate);
+			videoEncoder = fmt::format("amfh265enc name=vidEncoder bitrate={} rate-control=cbr usage=low-latency ! h265parse", config.bitrate);
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("av1enc name=vidEncoder bitrate={} rate-control=cbr ! av1parse", config.bitrate);
+			videoEncoder = fmt::format("amfav1enc name=vidEncoder bitrate={} usage=low-latency ! av1parse", config.bitrate);
 		}
 	}
 	else if (config.encoder == "qsv")
@@ -434,7 +460,7 @@ void *runEncodeThread(void *p)
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("av1enc name=vidEncoder bitrate={} ! av1parse", config.bitrate);
+			videoEncoder = fmt::format("nvav1enc name=vidEncoder bitrate={} ! av1parse", config.bitrate);
 		}
 	}
 	else
@@ -449,26 +475,27 @@ void *runEncodeThread(void *p)
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("av1enc name=vidEncoder bitrate={} cpu-used=9 usage-profile=realtime tile-columns=2 tile-rows=2 ! av1parse", config.bitrate);
+			videoEncoder = fmt::format("rav1enc name=vidEncoder bitrate={} speed-preset=8 tile-cols=2 tile-rows=2 ! av1parse", config.bitrate);
 		}
 	}
 
 	if (config.transport == "rtp")
 	{
-		audioPayloader = "rtpmp4gpay pt=97 ! outq.sink_0 outq.src_0  ! audiosink.";
+		audioPayloader = "rtpgstpay pt=97 ! outq.sink_0 outq.src_0  ! audiosink.";
+		videoPayloader = "rtpgstpay ! outq.sink_1 outq.src_1 ! videosink.";
 
-		if (config.codec == "h264")
-		{
-			videoPayloader = "rtph264pay config-interval=1 ! outq.sink_1 outq.src_1 ! videosink.";
-		}
-		else if (config.codec == "h265")
-		{
-			videoPayloader = "rtph265pay config-interval=1 aggregate-mode=max pt=96 ! outq.sink_1 outq.src_1 ! videosink.";
-		}
-		else if (config.codec == "av1")
-		{
-			videoPayloader = "rtpav1pay ! outq.sink_1 outq.src_1 ! videosink.";
-		}
+		// if (config.codec == "h264")
+		// {
+		// 	videoPayloader = "rtpgstpay ! outq.sink_1 outq.src_1 ! videosink.";
+		// }
+		// else if (config.codec == "h265")
+		// {
+		// 	videoPayloader = "rtph265pay config-interval=1 aggregate-mode=max pt=96 ! outq.sink_1 outq.src_1 ! videosink.";
+		// }
+		// else if (config.codec == "av1")
+		// {
+		// 	videoPayloader = "rtpav1pay ! outq.sink_1 outq.src_1 ! videosink.";
+		// }
 	}
 	else
 	{
