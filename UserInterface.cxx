@@ -26,14 +26,16 @@ Fl_Menu_Item* UserInterface::nvencEncoderChoice = UserInterface::menu_encoderSel
 
 Fl_Menu_Item UserInterface::menu_transportSelect[] = {
  {"MPEG TS", 0,  (Fl_Callback*)select_transport_cb, (void*)("m2ts"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"RTP", 0,  (Fl_Callback*)select_transport_cb, (void*)("rtp"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"Matroska", 0,  (Fl_Callback*)select_transport_cb, (void*)("mkv"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"RTP - GST Buffer", 0,  (Fl_Callback*)select_transport_cb, (void*)("rtpgst"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
  {0,0,0,0,0,0,0,0,0}
 };
 Fl_Menu_Item* UserInterface::m2tsTransportChoice = UserInterface::menu_transportSelect + 0;
-Fl_Menu_Item* UserInterface::rtpTransportChoice = UserInterface::menu_transportSelect + 1;
+Fl_Menu_Item* UserInterface::mkvTransportChoice = UserInterface::menu_transportSelect + 1;
+Fl_Menu_Item* UserInterface::rtpgstTransportChoice = UserInterface::menu_transportSelect + 2;
 
 UserInterface::UserInterface() {
-  { mainWindow = new Fl_Double_Window(1175, 724, "NDI RIST Encoder");
+  { mainWindow = new Fl_Double_Window(1175, 612, "NDI RIST Encoder");
     mainWindow->user_data((void*)(this));
     { inputGroup = new Fl_Group(10, 25, 266, 199, "Input");
       { previewSourceBtn = new Fl_Button(64, 113, 185, 22, "Preview Source");
@@ -45,12 +47,6 @@ UserInterface::UserInterface() {
       { btnRefreshSources = new Fl_Button(64, 83, 185, 22, "Refresh Sources");
         btnRefreshSources->callback((Fl_Callback*)refreshSources_cb);
       } // Fl_Button* btnRefreshSources
-      { Fl_Button* o = new Fl_Button(63, 164, 190, 21, "Stream Source");
-        o->callback((Fl_Callback*)streamSource_cb);
-      } // Fl_Button* o
-      { Fl_Button* o = new Fl_Button(63, 193, 190, 22, "Stream Standby");
-        o->callback((Fl_Callback*)streamStandby_cb);
-      } // Fl_Button* o
       inputGroup->end();
     } // Fl_Group* inputGroup
     { Fl_Group* o = new Fl_Group(293, 23, 252, 212);
@@ -114,9 +110,9 @@ UserInterface::UserInterface() {
       } // Fl_Output* encodeBitrateOutput
       statsGroup->end();
     } // Fl_Group* statsGroup
-    { logDisplay = new Fl_Text_Display(21, 358, 1132, 164, "Log");
+    { logDisplay = new Fl_Text_Display(21, 246, 1132, 164, "Log");
     } // Fl_Text_Display* logDisplay
-    { ristLogDisplay = new Fl_Text_Display(22, 547, 1132, 164, "RIST Log");
+    { ristLogDisplay = new Fl_Text_Display(22, 431, 1132, 164, "RIST Log");
     } // Fl_Text_Display* ristLogDisplay
     mainWindow->end();
     mainWindow->resizable(mainWindow);

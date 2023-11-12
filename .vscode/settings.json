@@ -3,6 +3,7 @@
         "CMAKE_TOOLCHAIN_FILE": "[vcpkg root]/scripts/buildsystems/vcpkg.cmake"
       },
     "files.associations": {
+        "*.cps": "javascript",
         "*.ejs": "html",
         "rist-private.h": "c",
         "chrono": "cpp",
@@ -115,6 +116,7 @@
         "regex": "cpp",
         "span": "cpp",
         "stack": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "xstddef": "cpp"
     }
 }

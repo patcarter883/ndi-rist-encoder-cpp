@@ -89,5 +89,8 @@ target_link_libraries(ndi_rist_encoder PRIVATE ${NDI_LIBRARIES})
 add_dependencies(ndi_rist_encoder ristnet)
 add_dependencies(ristnet project_libristnet)
 
+install(TARGETS ndi_rist_encoder RUNTIME DESTINATION bin)
+include(CPack)
+
 
 # TODO: Add tests and install targets if needed.

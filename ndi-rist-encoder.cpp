@@ -25,13 +25,19 @@ UserInterface *ui = new UserInterface;
 Fl_Text_Buffer *logBuff = new Fl_Text_Buffer();
 Fl_Text_Buffer *ristLogBuff = new Fl_Text_Buffer();
 
+typedef struct BufferListFuncData 
+{
+	RISTNetSender *sender;
+	int streamId;
+};
+
 /* Structure to contain all our information, so we can pass it to callbacks */
 typedef struct _App App;
 
 struct _App
 {
 	GstElement *datasrc_pipeline;
-	GstElement *filesrc, *parser, *decoder, *videosink, *audiosink, *appsink, *fallbackVideo, *fallbackAudio, *videoEncoder;
+	GstElement *filesrc, *parser, *decoder, *videosink, *audiosink, *rtcp0sink, *rtcp1sink, *fallbackVideo, *fallbackAudio, *videoEncoder;
 	GstDeviceMonitor *monitor;
 
 	gboolean is_eos;
@@ -187,6 +193,9 @@ void stopStream()
 
 	Fl::lock();
 	ui->btnStopStream->deactivate();
+	Fl::unlock();
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	Fl::lock();
 	ui->btnStartStream->activate();
 	Fl::unlock();
 	Fl::awake();
@@ -206,25 +215,19 @@ static gboolean sendBufferToRist(GstBuffer *buffer, RISTNetSender *sender, uint1
 	return true;
 }
 
-// static GstFlowReturn
-// on_new_sample_from_sink(GstElement *elt, RISTNetSender *sender)
-// {
-// 	GstSample *sample;
-// 	GstBuffer *buffer;
+static gboolean sendBufferListToRist(GstBuffer **buffer, guint idx, gpointer userDataPtr)
+{
+	BufferListFuncData * userData = (BufferListFuncData*)userDataPtr;
+	GstMapInfo info;
 
-// 	/* get the sample from appsink */
-// 	sample = gst_app_sink_pull_sample(GST_APP_SINK(elt));
-// 	buffer = gst_sample_get_buffer(sample);
-// 	if (buffer)
-// 	{
-// 		sendBufferToRist(buffer, sender);
-// 		// logAppend("\nPulled no buffers. Exiting...\n");
-// 		// return GST_FLOW_EOS;
-// 	}
+	gst_buffer_map(*buffer, &info, GST_MAP_READ);
+	gsize &buf_size = info.size;
+	guint8 *&buf_data = info.data;
 
-// 	gst_sample_unref(sample);
-// 	return GST_FLOW_OK;
-// }
+	userData->sender->sendData(buf_data, buf_size, 0, userData->streamId);
+
+	return true;
+}
 
 static gboolean
 datasrc_message(GstBus *bus, GstMessage *message, App *app)
@@ -259,24 +262,89 @@ datasrc_message(GstBus *bus, GstMessage *message, App *app)
 	return TRUE;
 }
 
+void *runRistRtcp0(RISTNetSender *sender)
+{
+
+	GstSample *sample;
+	GstBufferList *bufferlist;
+
+	while (app.isRunning)
+	{
+		sample = gst_app_sink_pull_sample(GST_APP_SINK(app.rtcp0sink));
+		bufferlist = gst_sample_get_buffer_list(sample);
+		if (bufferlist)
+		{
+			BufferListFuncData user_data = {
+						.sender = sender,
+						.streamId = 2000
+					};
+
+			gst_buffer_list_foreach (bufferlist,
+                         sendBufferListToRist,
+                         &user_data);
+		}
+
+		gst_sample_unref(sample);
+	}
+
+	return 0L;
+}
+
+void *runRistRtcp1(RISTNetSender *sender)
+{
+
+	GstSample *sample;
+	GstBufferList *bufferlist;
+
+	while (app.isRunning)
+	{
+		sample = gst_app_sink_pull_sample(GST_APP_SINK(app.rtcp1sink));
+		bufferlist = gst_sample_get_buffer_list(sample);
+		if (bufferlist)
+		{
+			BufferListFuncData user_data = {
+						.sender = sender,
+						.streamId = 2002
+					};
+
+			gst_buffer_list_foreach (bufferlist,
+                         sendBufferListToRist,
+                         &user_data);
+		}
+
+		gst_sample_unref(sample);
+	}
+
+	return 0L;
+}
+
 void *runRistVideo(RISTNetSender *sender)
 {
 
 	GstSample *sample;
 	GstBuffer *buffer;
+	GstBufferList *bufferlist;
 
 	while (app.isRunning)
 	{
-		/* get the sample from appsink */
 		sample = gst_app_sink_pull_sample(GST_APP_SINK(app.videosink));
 		buffer = gst_sample_get_buffer(sample);
 		if (buffer)
 		{
 			sendBufferToRist(buffer, sender, 1000);
-
-			// logAppend("\nPulled no buffers. Exiting...\n");
-			// return GST_FLOW_EOS;
 		}
+		// bufferlist = gst_sample_get_buffer_list(sample);
+		// if (bufferlist)
+		// {
+		// 	BufferListFuncData user_data = {
+		// 				.sender = sender,
+		// 				.streamId = 1000
+		// 			};
+
+		// 	gst_buffer_list_foreach (bufferlist,
+        //                  sendBufferListToRist,
+        //                  &user_data);
+		// }
 
 		gst_sample_unref(sample);
 	}
@@ -289,6 +357,7 @@ void *runRistAudio(RISTNetSender *sender)
 
 	GstSample *sample;
 	GstBuffer *buffer;
+	GstBufferList *bufferlist;
 
 	while (app.isRunning)
 	{
@@ -297,12 +366,20 @@ void *runRistAudio(RISTNetSender *sender)
 		buffer = gst_sample_get_buffer(sample);
 		if (buffer)
 		{
-
-			sendBufferToRist(buffer, sender, 1002);
-
-			// logAppend("\nPulled no buffers. Exiting...\n");
-			// return GST_FLOW_EOS;
+			sendBufferToRist(buffer, sender, 1000);
 		}
+		// bufferlist = gst_sample_get_buffer_list(sample);
+		// if (bufferlist)
+		// {
+		// 	BufferListFuncData user_data = {
+		// 				.sender = sender,
+		// 				.streamId = 1002
+		// 			};
+
+		// 	gst_buffer_list_foreach (bufferlist,
+        //                  sendBufferListToRist,
+        //                  &user_data);
+		// }
 
 		gst_sample_unref(sample);
 	}
@@ -313,7 +390,7 @@ void *runRistAudio(RISTNetSender *sender)
 void ristStatistics_cb(void *msgPtr)
 {
 	rist_stats statistics = *(rist_stats*)msgPtr;
-	ui->bandwidthOutput->value(std::to_string(statistics.stats.sender_peer.bandwidth).c_str());
+	ui->bandwidthOutput->value(std::to_string(statistics.stats.sender_peer.bandwidth/1000).c_str());
 	ui->linkQualityOutput->value(std::to_string(statistics.stats.sender_peer.quality).c_str());
 	ui->totalPacketsOutput->value(std::to_string(statistics.stats.sender_peer.sent).c_str());
 	ui->retransmittedPacketsOutput->value(std::to_string(statistics.stats.sender_peer.retransmitted).c_str());
@@ -337,6 +414,18 @@ void gotRistStatistics(const rist_stats &statistics)
 
 		g_object_set(G_OBJECT(app.videoEncoder), "bitrate", newBitrate, NULL);
 	}
+
+	if (app.previousQuality == 100 && (int)statistics.stats.sender_peer.quality == 100)
+	{
+		double qualDiffPct = (app.currentBitrate / std::stoi(config.bitrate)) * 100;
+		int adjBitrate = (int)(app.currentBitrate * qualDiffPct);
+		int bitrateDelta = adjBitrate - app.currentBitrate;
+
+		int newBitrate = min(app.currentBitrate += bitrateDelta / 2, std::stoi(config.bitrate));
+		app.currentBitrate = newBitrate;
+
+		g_object_set(G_OBJECT(app.videoEncoder), "bitrate", max(newBitrate, 1000), NULL);
+	}	
 
 	app.previousQuality = statistics.stats.sender_peer.quality;
 
@@ -389,28 +478,35 @@ void *runEncodeThread(void *p)
 		}
 	}
 
-	mySendConfiguration.mLogLevel = RIST_LOG_DEBUG;
+	mySendConfiguration.mPeerConfig.timing_mode = 2;
+
+	mySendConfiguration.mLogLevel = RIST_LOG_INFO;
 	mySendConfiguration.mProfile = RIST_PROFILE_MAIN;
 	mySendConfiguration.mLogSetting.get()->log_cb = *ristLog;
 	thisRistSender.initSender(interfaceListSender, mySendConfiguration);
 
-	datasrc_pipeline_str += fmt::format("multiqueue name=demuxq multiqueue name=outq  ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
+	datasrc_pipeline_str += fmt::format("ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
 										config.ndi_input_name);
 
 	if (config.transport == "m2ts")
 	{
-		datasrc_pipeline_str += " appsink name=videosink mpegtsmux name=tsmux ! tsparse alignment=7 ! videosink. ";
+		datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false name=videosink mpegtsmux name=tsmux ! tsparse alignment=7 ! videosink. ";
 	}
 
-	if (config.transport == "rtp")
+	if (config.transport == "mkv")
 	{
-		datasrc_pipeline_str += " appsink name=videosink appsink name=audiosink ";
+		datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false name=videosink matroskamux streamable=true name=tsmux ! videosink. ";
 	}
 
-	std::string audioDemux = " demux.audio ! demuxq.sink_0 demuxq.src_0 ! audioresample ! audioconvert ";
-	std::string videoDemux = " demux.video ! demuxq.sink_1 demuxq.src_1 ! videoconvert ";
+	if (config.transport == "rtpgst")
+	{
+		datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false sync=false name=videosink appsink buffer-list=true wait-on-eos=false sync=false name=audiosink ";
+	}
 
-	std::string audioEncoder = " avenc_aac ! aacparse ";
+	std::string audioDemux = " demux.audio ! queue ! audioresample ! audioconvert ";
+	std::string videoDemux = " demux.video ! queue ! videoconvert ";
+
+	std::string audioEncoder = " avenc_aac ";
 
 	std::string videoEncoder;
 
@@ -422,80 +518,67 @@ void *runEncodeThread(void *p)
 	{
 		if (config.codec == "h264")
 		{
-			videoEncoder = fmt::format("amfh264enc name=vidEncoder  bitrate={} rate-control=cbr usage=low-latency ! h264parse", config.bitrate);
+			videoEncoder = fmt::format("amfh264enc name=vidEncoder  bitrate={} rate-control=cbr usage=low-latency ! video/x-h264,framerate=60/1,profile=high", config.bitrate);
 		}
 		else if (config.codec == "h265")
 		{
-			videoEncoder = fmt::format("amfh265enc name=vidEncoder bitrate={} rate-control=cbr usage=low-latency ! h265parse", config.bitrate);
+			videoEncoder = fmt::format("amfh265enc name=vidEncoder bitrate={} rate-control=cbr usage=low-latency ! video/x-h265,framerate=60/1,profile=high", config.bitrate);
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("amfav1enc name=vidEncoder bitrate={} usage=low-latency ! av1parse", config.bitrate);
+			videoEncoder = fmt::format("amfav1enc name=vidEncoder bitrate={} rate-control=cbr usage=low-latency preset=high-quality ! video/x-av1,framerate=60/1", config.bitrate);
 		}
 	}
 	else if (config.encoder == "qsv")
 	{
 		if (config.codec == "h264")
 		{
-			videoEncoder = fmt::format("qsv264enc name=vidEncoder  bitrate={} rate-control=cbr ! h264parse", config.bitrate);
+			videoEncoder = fmt::format("qsvh264enc name=vidEncoder  bitrate={} rate-control=cbr", config.bitrate);
 		}
 		else if (config.codec == "h265")
 		{
-			videoEncoder = fmt::format("qsv265enc name=vidEncoder bitrate={} rate-control=cbr ! h265parse", config.bitrate);
+			videoEncoder = fmt::format("qsvh265enc name=vidEncoder bitrate={} rate-control=cbr", config.bitrate);
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("qsvav1enc name=vidEncoder bitrate={} rate-control=cbr ! av1parse", config.bitrate);
+			videoEncoder = fmt::format("qsvav1enc name=vidEncoder bitrate={} rate-control=cbr", config.bitrate);
 		}
 	}
 	else if (config.encoder == "nvenc")
 	{
 		if (config.codec == "h264")
 		{
-			videoEncoder = fmt::format("nvh264enc name=vidEncoder  bitrate={} ! h264parse", config.bitrate);
+			videoEncoder = fmt::format("nvh264enc name=vidEncoder bitrate={}", config.bitrate);
 		}
 		else if (config.codec == "h265")
 		{
-			videoEncoder = fmt::format("nvh265enc name=vidEncoder bitrate={} ! h265parse", config.bitrate);
+			videoEncoder = fmt::format("nvh265enc name=vidEncoder bitrate={}", config.bitrate);
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("nvav1enc name=vidEncoder bitrate={} ! av1parse", config.bitrate);
+			videoEncoder = fmt::format("nvav1enc name=vidEncoder bitrate={}", config.bitrate);
 		}
 	}
 	else
 	{
 		if (config.codec == "h264")
 		{
-			videoEncoder = fmt::format("x264enc name=vidEncoder speed-preset=fast tune=zerolatency bitrate={} ! h264parse", config.bitrate);
+			videoEncoder = fmt::format("x264enc name=vidEncoder speed-preset=fast tune=zerolatency bitrate={}", config.bitrate);
 		}
 		else if (config.codec == "h265")
 		{
-			videoEncoder = fmt::format("x265enc name=vidEncoder bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency ! h265parse", config.bitrate);
+			videoEncoder = fmt::format("x265enc name=vidEncoder bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency", config.bitrate);
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("rav1enc name=vidEncoder bitrate={} speed-preset=8 tile-cols=2 tile-rows=2 ! av1parse", config.bitrate);
+			videoEncoder = fmt::format("rav1enc name=vidEncoder bitrate={} speed-preset=8 tile-cols=2 tile-rows=2", config.bitrate);
 		}
 	}
 
-	if (config.transport == "rtp")
+	if (config.transport == "rtpgst")
 	{
-		audioPayloader = "rtpgstpay pt=97 ! outq.sink_0 outq.src_0  ! audiosink.";
-		videoPayloader = "rtpgstpay ! outq.sink_1 outq.src_1 ! videosink.";
-
-		// if (config.codec == "h264")
-		// {
-		// 	videoPayloader = "rtpgstpay ! outq.sink_1 outq.src_1 ! videosink.";
-		// }
-		// else if (config.codec == "h265")
-		// {
-		// 	videoPayloader = "rtph265pay config-interval=1 aggregate-mode=max pt=96 ! outq.sink_1 outq.src_1 ! videosink.";
-		// }
-		// else if (config.codec == "av1")
-		// {
-		// 	videoPayloader = "rtpav1pay ! outq.sink_1 outq.src_1 ! videosink.";
-		// }
+		audioPayloader = "queue ! rtpgstpay config-interval=1 pt=97 ! audiosink.";
+		videoPayloader = "queue ! rtpgstpay config-interval=1 ! videosink.";
 	}
 	else
 	{
@@ -526,32 +609,22 @@ void *runEncodeThread(void *p)
 
 	// /* set up appsink */
 	app.videosink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "videosink");
-	// g_object_set(G_OBJECT(app.videosink), "emit-signals", TRUE, "sync", FALSE,
-	// 			 NULL);
-	// g_signal_connect(app.videosink, "new-sample",
-	// 				 G_CALLBACK(on_new_sample_from_sink), &thisRistSender);
 
 	ristVideoThread = std::thread(runRistVideo, &thisRistSender);
 
-	if (config.transport == "rtp")
+	if (config.transport == "rtp" || config.transport == "rtpgst")
 	{
 
 		// /* set up appsink */
 		app.audiosink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "audiosink");
-		// g_object_set(G_OBJECT(app.audiosink), "emit-signals", TRUE, "sync", FALSE,
-		// 			 NULL);
-		// g_signal_connect(app.audiosink, "new-sample",
-		// 				 G_CALLBACK(on_new_sample_from_sink), &thisRistSender);
+		app.rtcp0sink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "rtcp0sink");
+		app.rtcp1sink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "rctp1sink");
 
 		ristAudioThread = std::thread(runRistAudio, &thisRistSender);
 	}
 
 	app.isPlaying = true;
-	logAppend("Changing state of datasrc_pipeline to PLAYING...\n");
-
-	/* only start datasrc_pipeline to ensure we have enough data before
-	 * starting datasink_pipeline
-	 */
+	logAppend("Setting pipeline to PLAYING.\n");
 
 	gst_element_set_state(app.datasrc_pipeline, GST_STATE_PLAYING);
 

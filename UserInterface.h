@@ -9,8 +9,6 @@
 extern void preview_cb(Fl_Button*, void*);
 #include <FL/Fl_Choice.H>
 extern void refreshSources_cb(Fl_Button*, void*);
-extern void streamSource_cb(Fl_Button*, void*);
-extern void streamStandby_cb(Fl_Button*, void*);
 extern void select_codec_cb(Fl_Menu_*, void*);
 extern void select_encoder_cb(Fl_Menu_*, void*);
 #include <FL/Fl_Input.H>
@@ -50,7 +48,8 @@ public:
   Fl_Choice *transportSelect;
   static Fl_Menu_Item menu_transportSelect[];
   static Fl_Menu_Item *m2tsTransportChoice;
-  static Fl_Menu_Item *rtpTransportChoice;
+  static Fl_Menu_Item *mkvTransportChoice;
+  static Fl_Menu_Item *rtpgstTransportChoice;
   Fl_Group *outputGroup;
   Fl_Input *ristAddressInput;
   Fl_Input *ristPortInput;
