@@ -5,17 +5,15 @@
 #include <FL/Fl.H>
 #include <FL/Fl_Double_Window.H>
 #include <FL/Fl_Group.H>
+#include <FL/Fl_Choice.H>
 #include <FL/Fl_Button.H>
 extern void preview_cb(Fl_Button*, void*);
-#include <FL/Fl_Choice.H>
 extern void refreshSources_cb(Fl_Button*, void*);
 extern void select_codec_cb(Fl_Menu_*, void*);
 extern void select_encoder_cb(Fl_Menu_*, void*);
 #include <FL/Fl_Input.H>
 extern void encoder_bitrate_cb(Fl_Input*, void*);
-extern void select_transport_cb(Fl_Menu_*, void*);
 extern void rist_address_cb(Fl_Input*, void*);
-extern void rist_port_cb(Fl_Input*, void*);
 extern void rist_buffer_cb(Fl_Input*, void*);
 extern void rist_bandwidth_cb(Fl_Input*, void*);
 extern void startStream_cb(Fl_Button*, void*);
@@ -28,8 +26,8 @@ public:
   UserInterface();
   Fl_Double_Window *mainWindow;
   Fl_Group *inputGroup;
-  Fl_Button *previewSourceBtn;
   Fl_Choice *ndiSourceSelect;
+  Fl_Button *previewSourceBtn;
   Fl_Button *btnRefreshSources;
   Fl_Group *encodeGroup;
   Fl_Choice *codecSelect;
@@ -44,15 +42,7 @@ public:
   static Fl_Menu_Item *qsvEncoderChoice;
   static Fl_Menu_Item *nvencEncoderChoice;
   Fl_Input *encoderBitrateInput;
-  Fl_Group *transportGroup;
-  Fl_Choice *transportSelect;
-  static Fl_Menu_Item menu_transportSelect[];
-  static Fl_Menu_Item *m2tsTransportChoice;
-  static Fl_Menu_Item *mkvTransportChoice;
-  static Fl_Menu_Item *rtpgstTransportChoice;
-  Fl_Group *outputGroup;
   Fl_Input *ristAddressInput;
-  Fl_Input *ristPortInput;
   Fl_Input *ristBufferInput;
   Fl_Input *ristBandwidthInput;
   Fl_Button *btnStartStream;

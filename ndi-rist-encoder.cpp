@@ -37,7 +37,7 @@ typedef struct _App App;
 struct _App
 {
 	GstElement *datasrc_pipeline;
-	GstElement *filesrc, *parser, *decoder, *videosink, *audiosink, *rtcp0sink, *rtcp1sink, *fallbackVideo, *fallbackAudio, *videoEncoder;
+	GstElement *filesrc, *parser, *decoder, *videosink, *videoEncoder;
 	GstDeviceMonitor *monitor;
 
 	gboolean is_eos;
@@ -65,8 +65,7 @@ struct _Config
 	std::string encoder = "software";
 	std::string transport = "m2ts";
 	std::string bitrate = "5000";
-	std::string rist_output_address = "127.0.0.1";
-	std::string rist_output_port = "5000";
+	std::string rist_output_address = "127.0.0.1:5000";
 	std::string rist_output_buffer;
 	std::string rist_output_bandwidth;
 };
@@ -89,7 +88,6 @@ void initUi()
 	ui->ristAddressInput->value(config.rist_output_address.c_str());
 	ui->ristBandwidthInput->value(config.rist_output_bandwidth.c_str());
 	ui->ristBufferInput->value(config.rist_output_buffer.c_str());
-	ui->ristPortInput->value(config.rist_output_port.c_str());
 	ui->encoderBitrateInput->value(config.bitrate.c_str());
 	ui->show(NULL, NULL);
 }
@@ -262,62 +260,6 @@ datasrc_message(GstBus *bus, GstMessage *message, App *app)
 	return TRUE;
 }
 
-void *runRistRtcp0(RISTNetSender *sender)
-{
-
-	GstSample *sample;
-	GstBufferList *bufferlist;
-
-	while (app.isRunning)
-	{
-		sample = gst_app_sink_pull_sample(GST_APP_SINK(app.rtcp0sink));
-		bufferlist = gst_sample_get_buffer_list(sample);
-		if (bufferlist)
-		{
-			BufferListFuncData user_data = {
-						.sender = sender,
-						.streamId = 2000
-					};
-
-			gst_buffer_list_foreach (bufferlist,
-                         sendBufferListToRist,
-                         &user_data);
-		}
-
-		gst_sample_unref(sample);
-	}
-
-	return 0L;
-}
-
-void *runRistRtcp1(RISTNetSender *sender)
-{
-
-	GstSample *sample;
-	GstBufferList *bufferlist;
-
-	while (app.isRunning)
-	{
-		sample = gst_app_sink_pull_sample(GST_APP_SINK(app.rtcp1sink));
-		bufferlist = gst_sample_get_buffer_list(sample);
-		if (bufferlist)
-		{
-			BufferListFuncData user_data = {
-						.sender = sender,
-						.streamId = 2002
-					};
-
-			gst_buffer_list_foreach (bufferlist,
-                         sendBufferListToRist,
-                         &user_data);
-		}
-
-		gst_sample_unref(sample);
-	}
-
-	return 0L;
-}
-
 void *runRistVideo(RISTNetSender *sender)
 {
 
@@ -352,41 +294,6 @@ void *runRistVideo(RISTNetSender *sender)
 	return 0L;
 }
 
-void *runRistAudio(RISTNetSender *sender)
-{
-
-	GstSample *sample;
-	GstBuffer *buffer;
-	GstBufferList *bufferlist;
-
-	while (app.isRunning)
-	{
-		/* get the sample from appsink */
-		sample = gst_app_sink_pull_sample(GST_APP_SINK(app.audiosink));
-		buffer = gst_sample_get_buffer(sample);
-		if (buffer)
-		{
-			sendBufferToRist(buffer, sender, 1000);
-		}
-		// bufferlist = gst_sample_get_buffer_list(sample);
-		// if (bufferlist)
-		// {
-		// 	BufferListFuncData user_data = {
-		// 				.sender = sender,
-		// 				.streamId = 1002
-		// 			};
-
-		// 	gst_buffer_list_foreach (bufferlist,
-        //                  sendBufferListToRist,
-        //                  &user_data);
-		// }
-
-		gst_sample_unref(sample);
-	}
-	return 0L;
-}
-
-
 void ristStatistics_cb(void *msgPtr)
 {
 	rist_stats statistics = *(rist_stats*)msgPtr;
@@ -402,31 +309,30 @@ void ristStatistics_cb(void *msgPtr)
 
 void gotRistStatistics(const rist_stats &statistics)
 {
+	int bitrateDelta = 0;
 
 	if (app.previousQuality > 0 && (int)statistics.stats.sender_peer.quality != (int)app.previousQuality)
 	{
 		double qualDiffPct = statistics.stats.sender_peer.quality / app.previousQuality;
 		int adjBitrate = (int)(app.currentBitrate * qualDiffPct);
-		int bitrateDelta = adjBitrate - app.currentBitrate;
-
-		int newBitrate = min(app.currentBitrate += bitrateDelta / 2, std::stoi(config.bitrate));
-		app.currentBitrate = newBitrate;
-
-		g_object_set(G_OBJECT(app.videoEncoder), "bitrate", newBitrate, NULL);
+		bitrateDelta = adjBitrate - app.currentBitrate;
 	}
 
 	if (app.previousQuality == 100 && (int)statistics.stats.sender_peer.quality == 100)
 	{
 		double qualDiffPct = (app.currentBitrate / std::stoi(config.bitrate)) * 100;
 		int adjBitrate = (int)(app.currentBitrate * qualDiffPct);
-		int bitrateDelta = adjBitrate - app.currentBitrate;
-
-		int newBitrate = min(app.currentBitrate += bitrateDelta / 2, std::stoi(config.bitrate));
-		app.currentBitrate = newBitrate;
-
-		g_object_set(G_OBJECT(app.videoEncoder), "bitrate", max(newBitrate, 1000), NULL);
+		bitrateDelta = adjBitrate - app.currentBitrate;	
 	}	
 
+	if (bitrateDelta != 0)
+	{
+		int newBitrate = max(min(app.currentBitrate += bitrateDelta / 2, std::stoi(config.bitrate)), 1000);
+		app.currentBitrate = newBitrate;
+
+		g_object_set(G_OBJECT(app.videoEncoder), "bitrate", newBitrate, NULL);
+	}
+	
 	app.previousQuality = statistics.stats.sender_peer.quality;
 
 	rist_stats *p_statistics = new rist_stats;
@@ -450,7 +356,7 @@ void *runEncodeThread(void *p)
 	RISTNetSender::RISTNetSenderSettings mySendConfiguration;
 
 	// Generate a vector of RIST URL's,  ip(name), ports, RIST URL output, listen(true) or send mode (false)
-	std::string lURL = fmt::format("rist://{}:{}", config.rist_output_address, config.rist_output_port);
+	std::string lURL = fmt::format("rist://{}", config.rist_output_address);
 	std::vector<std::tuple<std::string, int>> interfaceListSender;
 	// if (RISTNetTools::buildRISTURL(config.rist_output_address, config.rist_output_port, lURL, false))
 	// {
@@ -488,20 +394,7 @@ void *runEncodeThread(void *p)
 	datasrc_pipeline_str += fmt::format("ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
 										config.ndi_input_name);
 
-	if (config.transport == "m2ts")
-	{
-		datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false name=videosink mpegtsmux name=tsmux ! tsparse alignment=7 ! videosink. ";
-	}
-
-	if (config.transport == "mkv")
-	{
-		datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false name=videosink matroskamux streamable=true name=tsmux ! videosink. ";
-	}
-
-	if (config.transport == "rtpgst")
-	{
-		datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false sync=false name=videosink appsink buffer-list=true wait-on-eos=false sync=false name=audiosink ";
-	}
+	datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false name=videosink mpegtsmux name=tsmux ! tsparse alignment=7 ! videosink. ";
 
 	std::string audioDemux = " demux.audio ! queue ! audioresample ! audioconvert ";
 	std::string videoDemux = " demux.video ! queue ! videoconvert ";
@@ -518,15 +411,15 @@ void *runEncodeThread(void *p)
 	{
 		if (config.codec == "h264")
 		{
-			videoEncoder = fmt::format("amfh264enc name=vidEncoder  bitrate={} rate-control=cbr usage=low-latency ! video/x-h264,framerate=60/1,profile=high", config.bitrate);
+			videoEncoder = fmt::format("amfh264enc name=vidEncoder  bitrate={} rate-control=cbr usage=low-latency ! video/x-h264,framerate=60/1,profile=high ! h264parse ", config.bitrate);
 		}
 		else if (config.codec == "h265")
 		{
-			videoEncoder = fmt::format("amfh265enc name=vidEncoder bitrate={} rate-control=cbr usage=low-latency ! video/x-h265,framerate=60/1,profile=high", config.bitrate);
+			videoEncoder = fmt::format("amfh265enc name=vidEncoder bitrate={} rate-control=cbr usage=low-latency ! video/x-h265,framerate=60/1 ! h265parse ", config.bitrate);
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("amfav1enc name=vidEncoder bitrate={} rate-control=cbr usage=low-latency preset=high-quality ! video/x-av1,framerate=60/1", config.bitrate);
+			videoEncoder = fmt::format("amfav1enc name=vidEncoder bitrate={} rate-control=cbr usage=low-latency preset=high-quality ! video/x-av1,framerate=60/1 ! av1parse ", config.bitrate);
 		}
 	}
 	else if (config.encoder == "qsv")
@@ -575,16 +468,8 @@ void *runEncodeThread(void *p)
 		}
 	}
 
-	if (config.transport == "rtpgst")
-	{
-		audioPayloader = "queue ! rtpgstpay config-interval=1 pt=97 ! audiosink.";
-		videoPayloader = "queue ! rtpgstpay config-interval=1 ! videosink.";
-	}
-	else
-	{
 		audioPayloader = "queue ! tsmux. ";
 		videoPayloader = "queue ! tsmux. ";
-	}
 
 	datasrc_pipeline_str += fmt::format("{} ! {} ! {}  {} ! {} ! {}", audioDemux, audioEncoder, audioPayloader, videoDemux, videoEncoder, videoPayloader);
 
@@ -611,17 +496,6 @@ void *runEncodeThread(void *p)
 	app.videosink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "videosink");
 
 	ristVideoThread = std::thread(runRistVideo, &thisRistSender);
-
-	if (config.transport == "rtp" || config.transport == "rtpgst")
-	{
-
-		// /* set up appsink */
-		app.audiosink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "audiosink");
-		app.rtcp0sink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "rtcp0sink");
-		app.rtcp1sink = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "rctp1sink");
-
-		ristAudioThread = std::thread(runRistAudio, &thisRistSender);
-	}
 
 	app.isPlaying = true;
 	logAppend("Setting pipeline to PLAYING.\n");
@@ -733,33 +607,8 @@ void preview_cb(Fl_Button *o, void *v)
 	previewThread = std::thread(previewNDISource, ui);
 }
 
-void streamSource_cb(Fl_Button *, void *)
-{
-	auto *audioPad = gst_element_get_static_pad(app.fallbackAudio, "sink_0");
-	auto *videoPad = gst_element_get_static_pad(app.fallbackVideo, "sink_0");
-
-	g_object_set(G_OBJECT(app.fallbackAudio), "active-pad", audioPad, NULL);
-	g_object_set(G_OBJECT(app.fallbackVideo), "active-pad", videoPad, NULL);
-
-	gst_object_unref(audioPad);
-	gst_object_unref(videoPad);
-}
-
-void streamStandby_cb(Fl_Button *, void *)
-{
-	auto *audioPad = gst_element_get_static_pad(app.fallbackAudio, "sink_1");
-	auto *videoPad = gst_element_get_static_pad(app.fallbackVideo, "sink_1");
-
-	g_object_set(G_OBJECT(app.fallbackAudio), "active-pad", audioPad, NULL);
-	g_object_set(G_OBJECT(app.fallbackVideo), "active-pad", videoPad, NULL);
-
-	gst_object_unref(audioPad);
-	gst_object_unref(videoPad);
-}
-
 void startStream_cb(Fl_Button *o, void *v)
 {
-
 	startStream();
 }
 
@@ -809,11 +658,6 @@ void select_transport_cb(Fl_Menu_ *o, void *v)
 void rist_address_cb(Fl_Input *o, void *v)
 {
 	config.rist_output_address = o->value();
-}
-
-void rist_port_cb(Fl_Input *o, void *v)
-{
-	config.rist_output_port = o->value();
 }
 
 void rist_buffer_cb(Fl_Input *o, void *v)
