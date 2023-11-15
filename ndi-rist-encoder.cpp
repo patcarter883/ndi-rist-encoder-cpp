@@ -310,24 +310,27 @@ void ristStatistics_cb(void *msgPtr)
 void gotRistStatistics(const rist_stats &statistics)
 {
 	int bitrateDelta = 0;
+	double qualDiffPct;
+	int adjBitrate;
+	double maxBitrate = std::stoi(config.bitrate);
 
 	if (app.previousQuality > 0 && (int)statistics.stats.sender_peer.quality != (int)app.previousQuality)
 	{
-		double qualDiffPct = statistics.stats.sender_peer.quality / app.previousQuality;
-		int adjBitrate = (int)(app.currentBitrate * qualDiffPct);
+		qualDiffPct = statistics.stats.sender_peer.quality / app.previousQuality;
+		adjBitrate = (int)(app.currentBitrate * qualDiffPct);
 		bitrateDelta = adjBitrate - app.currentBitrate;
 	}
 
-	if (app.previousQuality == 100 && (int)statistics.stats.sender_peer.quality == 100)
+	if (app.previousQuality == 100 && (int)statistics.stats.sender_peer.quality == 100 && app.currentBitrate < maxBitrate)
 	{
-		double qualDiffPct = (app.currentBitrate / std::stoi(config.bitrate)) * 100;
-		int adjBitrate = (int)(app.currentBitrate * qualDiffPct);
+		qualDiffPct = (app.currentBitrate / maxBitrate);
+		adjBitrate = (int)(app.currentBitrate * (1 + qualDiffPct));
 		bitrateDelta = adjBitrate - app.currentBitrate;	
 	}	
 
 	if (bitrateDelta != 0)
 	{
-		int newBitrate = max(min(app.currentBitrate += bitrateDelta / 2, std::stoi(config.bitrate)), 1000);
+		int newBitrate = max(min(app.currentBitrate += bitrateDelta / 2, maxBitrate), 1000);
 		app.currentBitrate = newBitrate;
 
 		g_object_set(G_OBJECT(app.videoEncoder), "bitrate", newBitrate, NULL);
@@ -394,12 +397,12 @@ void *runEncodeThread(void *p)
 	datasrc_pipeline_str += fmt::format("ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
 										config.ndi_input_name);
 
-	datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false name=videosink mpegtsmux name=tsmux ! tsparse alignment=7 ! videosink. ";
+	datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false name=videosink mpegtsmux alignment=7 name=tsmux ! tsparse ! videosink. ";
 
 	std::string audioDemux = " demux.audio ! queue ! audioresample ! audioconvert ";
 	std::string videoDemux = " demux.video ! queue ! videoconvert ";
 
-	std::string audioEncoder = " avenc_aac ";
+	std::string audioEncoder = " avenc_aac ! aacparse ";
 
 	std::string videoEncoder;
 
@@ -486,9 +489,6 @@ void *runEncodeThread(void *p)
 	/* add watch for messages */
 	gst_bus_add_watch(datasrc_bus, (GstBusFunc)datasrc_message, &app);
 	gst_object_unref(datasrc_bus);
-
-	// app.fallbackVideo = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "fallbackvideo");
-	// app.fallbackAudio = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "fallbackaudio");
 
 	app.videoEncoder = gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "vidEncoder");
 
