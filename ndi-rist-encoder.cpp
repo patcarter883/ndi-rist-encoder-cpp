@@ -397,7 +397,7 @@ void *runEncodeThread(void *p)
 	datasrc_pipeline_str += fmt::format("ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
 										config.ndi_input_name);
 
-	datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false name=videosink mpegtsmux alignment=7 name=tsmux ! tsparse ! videosink. ";
+	datasrc_pipeline_str += " appsink wait-on-eos=false name=videosink mpegtsmux alignment=7 name=tsmux ! tsparse ! videosink. ";
 
 	std::string audioDemux = " demux.audio ! queue ! audioresample ! audioconvert ";
 	std::string videoDemux = " demux.video ! queue ! videoconvert ";
