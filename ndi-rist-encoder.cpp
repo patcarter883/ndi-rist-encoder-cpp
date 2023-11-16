@@ -417,45 +417,45 @@ void *runEncodeThread(void *p)
 	{
 		if (config.codec == "h264")
 		{
-			videoEncoder = fmt::format("qsvh264enc name=vidEncoder  bitrate={} rate-control=cbr target-usage=1", config.bitrate);
+			videoEncoder = fmt::format("qsvh264enc name=vidEncoder  bitrate={} rate-control=cbr target-usage=1 ! h264parse ", config.bitrate);
 		}
 		else if (config.codec == "h265")
 		{
-			videoEncoder = fmt::format("qsvh265enc name=vidEncoder bitrate={} rate-control=cbr target-usage=1", config.bitrate);
+			videoEncoder = fmt::format("qsvh265enc name=vidEncoder bitrate={} rate-control=cbr target-usage=1 ! h265parse ", config.bitrate);
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("qsvav1enc name=vidEncoder bitrate={} rate-control=cbr target-usage=1", config.bitrate);
+			videoEncoder = fmt::format("qsvav1enc name=vidEncoder bitrate={} rate-control=cbr target-usage=1 ! av1parse ", config.bitrate);
 		}
 	}
 	else if (config.encoder == "nvenc")
 	{
 		if (config.codec == "h264")
 		{
-			videoEncoder = fmt::format("nvh264enc name=vidEncoder bitrate={} rc-mode=cbr-hq preset=low-latency-hq", config.bitrate);
+			videoEncoder = fmt::format("nvh264enc name=vidEncoder bitrate={} rc-mode=cbr-hq preset=low-latency-hq ! h264parse ", config.bitrate);
 		}
 		else if (config.codec == "h265")
 		{
-			videoEncoder = fmt::format("nvh265enc name=vidEncoder bitrate={} rc-mode=cbr-hq preset=low-latency-hq", config.bitrate);
+			videoEncoder = fmt::format("nvh265enc name=vidEncoder bitrate={} rc-mode=cbr-hq preset=low-latency-hq ! h265parse ", config.bitrate);
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("nvav1enc name=vidEncoder bitrate={} rc-mode=cbr-hq preset=low-latency-hq", config.bitrate);
+			videoEncoder = fmt::format("nvav1enc name=vidEncoder bitrate={} rc-mode=cbr-hq preset=low-latency-hq ! av1parse ", config.bitrate);
 		}
 	}
 	else
 	{
 		if (config.codec == "h264")
 		{
-			videoEncoder = fmt::format("x264enc name=vidEncoder speed-preset=fast tune=zerolatency bitrate={}", config.bitrate);
+			videoEncoder = fmt::format("x264enc name=vidEncoder speed-preset=fast tune=zerolatency bitrate={} ! h264parse ", config.bitrate);
 		}
 		else if (config.codec == "h265")
 		{
-			videoEncoder = fmt::format("x265enc name=vidEncoder bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency", config.bitrate);
+			videoEncoder = fmt::format("x265enc name=vidEncoder bitrate={} sliced-threads=true speed-preset=fast tune=zerolatency ! h265parse ", config.bitrate);
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("rav1enc name=vidEncoder bitrate={} speed-preset=8 tile-cols=2 tile-rows=2", config.bitrate);
+			videoEncoder = fmt::format("rav1enc name=vidEncoder bitrate={} speed-preset=8 tile-cols=2 tile-rows=2 ! av1parse ", config.bitrate);
 		}
 	}
 
