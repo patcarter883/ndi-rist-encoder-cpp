@@ -199,7 +199,7 @@ void stopStream()
 	Fl::awake();
 }
 
-static gboolean sendBufferToRist(GstBuffer *buffer, RISTNetSender *sender, uint16_t streamId)
+static gboolean sendBufferToRist(GstBuffer *buffer, RISTNetSender *sender, uint16_t streamId = NULL)
 {
 	GstRTPBuffer rtp = GST_RTP_BUFFER_INIT;
 	GstMapInfo info;
@@ -273,20 +273,8 @@ void *runRistVideo(RISTNetSender *sender)
 		buffer = gst_sample_get_buffer(sample);
 		if (buffer)
 		{
-			sendBufferToRist(buffer, sender, 1000);
+			sendBufferToRist(buffer, sender);
 		}
-		// bufferlist = gst_sample_get_buffer_list(sample);
-		// if (bufferlist)
-		// {
-		// 	BufferListFuncData user_data = {
-		// 				.sender = sender,
-		// 				.streamId = 1000
-		// 			};
-
-		// 	gst_buffer_list_foreach (bufferlist,
-        //                  sendBufferListToRist,
-        //                  &user_data);
-		// }
 
 		gst_sample_unref(sample);
 	}
@@ -429,30 +417,30 @@ void *runEncodeThread(void *p)
 	{
 		if (config.codec == "h264")
 		{
-			videoEncoder = fmt::format("qsvh264enc name=vidEncoder  bitrate={} rate-control=cbr", config.bitrate);
+			videoEncoder = fmt::format("qsvh264enc name=vidEncoder  bitrate={} rate-control=cbr target-usage=1", config.bitrate);
 		}
 		else if (config.codec == "h265")
 		{
-			videoEncoder = fmt::format("qsvh265enc name=vidEncoder bitrate={} rate-control=cbr", config.bitrate);
+			videoEncoder = fmt::format("qsvh265enc name=vidEncoder bitrate={} rate-control=cbr target-usage=1", config.bitrate);
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("qsvav1enc name=vidEncoder bitrate={} rate-control=cbr", config.bitrate);
+			videoEncoder = fmt::format("qsvav1enc name=vidEncoder bitrate={} rate-control=cbr target-usage=1", config.bitrate);
 		}
 	}
 	else if (config.encoder == "nvenc")
 	{
 		if (config.codec == "h264")
 		{
-			videoEncoder = fmt::format("nvh264enc name=vidEncoder bitrate={}", config.bitrate);
+			videoEncoder = fmt::format("nvh264enc name=vidEncoder bitrate={} rc-mode=cbr-hq preset=low-latency-hq", config.bitrate);
 		}
 		else if (config.codec == "h265")
 		{
-			videoEncoder = fmt::format("nvh265enc name=vidEncoder bitrate={}", config.bitrate);
+			videoEncoder = fmt::format("nvh265enc name=vidEncoder bitrate={} rc-mode=cbr-hq preset=low-latency-hq", config.bitrate);
 		}
 		else if (config.codec == "av1")
 		{
-			videoEncoder = fmt::format("nvav1enc name=vidEncoder bitrate={}", config.bitrate);
+			videoEncoder = fmt::format("nvav1enc name=vidEncoder bitrate={} rc-mode=cbr-hq preset=low-latency-hq", config.bitrate);
 		}
 	}
 	else
