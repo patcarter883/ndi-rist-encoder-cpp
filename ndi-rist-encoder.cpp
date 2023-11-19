@@ -270,6 +270,19 @@ void *runRistVideo(RISTNetSender *sender)
 	while (app.isRunning)
 	{
 		sample = gst_app_sink_pull_sample(GST_APP_SINK(app.videosink));
+		bufferlist = gst_sample_get_buffer_list(sample);
+		if (bufferlist)
+		{
+			BufferListFuncData user_data = {
+						.sender = sender,
+						.streamId = 1000
+					};
+
+			gst_buffer_list_foreach (bufferlist,
+                         sendBufferListToRist,
+                         &user_data);
+		}
+
 		buffer = gst_sample_get_buffer(sample);
 		if (buffer)
 		{
@@ -385,7 +398,7 @@ void *runEncodeThread(void *p)
 	datasrc_pipeline_str += fmt::format("ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
 										config.ndi_input_name);
 
-	datasrc_pipeline_str += " appsink wait-on-eos=false name=videosink mpegtsmux alignment=7 name=tsmux ! tsparse ! videosink. ";
+	datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false sync=false name=videosink  mpegtsmux name=tsmux ! rtpmp2tpay ! .send_rtp_sink_0 rtpbin name=rtpbin rtpbin.send_rtp_src_0 ! videosink. ";
 
 	std::string audioDemux = " demux.audio ! queue ! audioresample ! audioconvert ";
 	std::string videoDemux = " demux.video ! queue ! videoconvert ";
