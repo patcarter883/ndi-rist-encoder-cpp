@@ -65,7 +65,7 @@ struct _Config
 	std::string encoder = "software";
 	std::string transport = "m2ts";
 	std::string bitrate = "4300";
-	std::string rist_output_address = "127.0.0.1:5000?bandwidth=10000&buffer-min=245&buffer-max=1000&rtt-min=40&rtt-max=500&reorder-buffer=60&congestion-control=1";
+	std::string rist_output_address = "127.0.0.1:5000?buffer-min=245&buffer-max=1000&rtt-min=40&rtt-max=500&reorder-buffer=60&congestion-control=1";
 	std::string rist_output_buffer;
 	std::string rist_output_bandwidth = "6000";
 };
