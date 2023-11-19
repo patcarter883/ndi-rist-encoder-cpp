@@ -64,10 +64,10 @@ struct _Config
 	std::string codec = "h264";
 	std::string encoder = "software";
 	std::string transport = "m2ts";
-	std::string bitrate = "5000";
-	std::string rist_output_address = "127.0.0.1:5000";
+	std::string bitrate = "4300";
+	std::string rist_output_address = "127.0.0.1:5000?bandwidth=10000&buffer-min=245&buffer-max=1000&rtt-min=40&rtt-max=500&reorder-buffer=60&congestion-control=1";
 	std::string rist_output_buffer;
-	std::string rist_output_bandwidth;
+	std::string rist_output_bandwidth = "6000";
 };
 
 /* Globals */
@@ -377,18 +377,6 @@ void *runEncodeThread(void *p)
 			mySendConfiguration.mPeerConfig.recovery_maxbitrate = recovery_maxbitrate;
 		}
 	}
-
-	if (config.rist_output_buffer != "")
-	{
-		int recovery_length = std::stoi(config.rist_output_buffer);
-		if (recovery_length > 0)
-		{
-			mySendConfiguration.mPeerConfig.recovery_length_min = recovery_length;
-			mySendConfiguration.mPeerConfig.recovery_length_max = recovery_length;
-		}
-	}
-
-	mySendConfiguration.mPeerConfig.timing_mode = 2;
 
 	mySendConfiguration.mLogLevel = RIST_LOG_INFO;
 	mySendConfiguration.mProfile = RIST_PROFILE_MAIN;
