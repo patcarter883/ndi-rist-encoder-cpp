@@ -1,3 +1,6 @@
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/Microsoft/vcpkg.git
+[submodule "rpclib"]
+	path = extern/rpclib
+	url = https://github.com/rpclib/rpclib.git

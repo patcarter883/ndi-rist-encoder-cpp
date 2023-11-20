@@ -48,6 +48,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/build/include/libr
 find_package(NDI REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(FLTK CONFIG REQUIRED)
+add_subdirectory(extern/rpclib)
 
 IF (WIN32)
 
@@ -80,17 +81,31 @@ target_include_directories(ndi_rist_encoder PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/r
 target_include_directories(ndi_rist_encoder PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/inc/)
 target_include_directories(ndi_rist_encoder PRIVATE ${NDI_INCLUDE_DIRS})
 
-target_link_libraries(ndi_rist_encoder PRIVATE fmt::fmt)
+target_link_libraries(ndi_rist_encoder PRIVATE fmt::fmt rpc)
 target_link_libraries(ndi_rist_encoder PRIVATE fltk fltk_gl fltk_forms fltk_images)
 
 target_link_libraries(ndi_rist_encoder PRIVATE ristnet ${CMAKE_CURRENT_SOURCE_DIR}/ristwrap/rist/build/librist.a) 
 target_link_libraries(ndi_rist_encoder PRIVATE ${NDI_LIBRARIES}) 
 
-add_dependencies(ndi_rist_encoder ristnet)
+add_dependencies(ndi_rist_encoder ristnet rpc)
 add_dependencies(ristnet project_libristnet)
 
 install(TARGETS ndi_rist_encoder RUNTIME DESTINATION bin)
 include(CPack)
 
+find_package(Git QUIET)
+if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
+# Update submodules as needed
+    option(GIT_SUBMODULE "Check submodules during build" ON)
+    if(GIT_SUBMODULE)
+        message(STATUS "Submodule update")
+        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive --remote
+                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
+        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+            message(FATAL_ERROR "git submodule update --init --recursive failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+        endif()
+    endif()
+endif()
 
 # TODO: Add tests and install targets if needed.

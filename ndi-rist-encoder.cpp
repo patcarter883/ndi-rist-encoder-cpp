@@ -20,6 +20,8 @@
 #include <gst/allocators/gstdmabuf.h>
 #include <gst/video/video.h>
 #include <utility>
+#include <iostream>
+#include "rpc/client.h"
 
 UserInterface *ui = new UserInterface;
 Fl_Text_Buffer *logBuff = new Fl_Text_Buffer();
@@ -68,6 +70,7 @@ struct _Config
 	std::string rist_output_address = "127.0.0.1:5000?buffer-min=245&buffer-max=1000&rtt-min=40&rtt-max=500&reorder-buffer=60&congestion-control=1";
 	std::string rist_output_buffer;
 	std::string rist_output_bandwidth = "6000";
+	std::string rtmpAddress = "";
 };
 
 /* Globals */
@@ -514,6 +517,9 @@ void *runEncodeThread(void *p)
 
 void startStream()
 {
+	rpc::client client("127.0.0.1", 5999);
+	auto result = client.call("start", fmt::format("rtmp://{} live=true", config.rtmpAddress));
+
 	app.isRunning = true;
 	if (encodeThread.joinable())
 	{
@@ -647,6 +653,11 @@ void select_transport_cb(Fl_Menu_ *o, void *v)
 void rist_address_cb(Fl_Input *o, void *v)
 {
 	config.rist_output_address = o->value();
+}
+
+void rtmp_address_cb(Fl_Input *o, void *v)
+{
+	config.rtmpAddress = o->value();
 }
 
 void rist_buffer_cb(Fl_Input *o, void *v)

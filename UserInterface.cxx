@@ -91,6 +91,9 @@ UserInterface::UserInterface() {
     } // Fl_Text_Display* logDisplay
     { ristLogDisplay = new Fl_Text_Display(22, 431, 1132, 164, "RIST Log");
     } // Fl_Text_Display* ristLogDisplay
+    { rtmpAddressInput = new Fl_Input(390, 63, 218, 22, "RTMP");
+      rtmpAddressInput->callback((Fl_Callback*)rtmp_address_cb);
+    } // Fl_Input* rtmpAddressInput
     mainWindow->end();
     mainWindow->resizable(mainWindow);
   } // Fl_Double_Window* mainWindow

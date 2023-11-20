@@ -7,7 +7,7 @@ class UserInterface {open
   Function {UserInterface()} {open
   } {
     Fl_Window mainWindow {
-      label {NDI RIST Encoder} open selected
+      label {NDI RIST Encoder} open
       xywh {665 163 1175 612} type Double resizable visible
     } {
       Fl_Group inputGroup {
@@ -97,7 +97,7 @@ class UserInterface {open
         xywh {390 33 218 22}
       }
       Fl_Group {} {
-        label {RIST Settings} open
+        label {RIST Settings}
         xywh {685 53 92 52}
       } {
         Fl_Input ristBufferInput {
@@ -157,6 +157,11 @@ class UserInterface {open
       Fl_Text_Display ristLogDisplay {
         label {RIST Log}
         xywh {22 431 1132 164}
+      }
+      Fl_Input rtmpAddressInput {
+        label RTMP
+        callback rtmp_address_cb selected
+        xywh {390 63 218 22}
       }
     }
   }

@@ -20,6 +20,7 @@ extern void startStream_cb(Fl_Button*, void*);
 extern void stopStream_cb(Fl_Button*, void*);
 #include <FL/Fl_Output.H>
 #include <FL/Fl_Text_Display.H>
+extern void rtmp_address_cb(Fl_Input*, void*);
 
 class UserInterface {
 public:
@@ -56,6 +57,7 @@ public:
   Fl_Output *encodeBitrateOutput;
   Fl_Text_Display *logDisplay;
   Fl_Text_Display *ristLogDisplay;
+  Fl_Input *rtmpAddressInput;
   void show(int argc, char **argv);
 };
 #endif
