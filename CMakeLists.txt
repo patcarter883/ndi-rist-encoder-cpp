@@ -12,7 +12,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Add source to this project's executable.
-add_executable (ndi_rist_encoder WIN32 "ndi-rist-encoder.cpp" "ndi-rist-encoder.h")
+add_executable (ndi_rist_encoder WIN32 "ndi-rist-encoder.cpp" "ndi-rist-encoder.h" "Url.cc" "Url.h")
 # add_executable (rist_restreamer WIN32 "rist-restreamer.cpp" "rist-restreamer.h" )
 
 include(ExternalProject)

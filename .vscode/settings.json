@@ -117,6 +117,9 @@
         "span": "cpp",
         "stack": "cpp",
         "valarray": "cpp",
-        "xstddef": "cpp"
+        "xstddef": "cpp",
+        "coroutine": "cpp",
+        "resumable": "cpp",
+        "future": "cpp"
     }
 }

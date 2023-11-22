@@ -20,8 +20,14 @@
 #include <gst/allocators/gstdmabuf.h>
 #include <gst/video/video.h>
 #include <utility>
+#include <algorithm>
 #include <iostream>
 #include "rpc/client.h"
+#include "Url.h"
+using homer6::Url;
+
+#include <string>
+using std::string;
 
 UserInterface *ui = new UserInterface;
 Fl_Text_Buffer *logBuff = new Fl_Text_Buffer();
@@ -67,7 +73,7 @@ struct _Config
 	std::string encoder = "software";
 	std::string transport = "m2ts";
 	std::string bitrate = "4300";
-	std::string rist_output_address = "127.0.0.1:5000?buffer-min=245&buffer-max=1000&rtt-min=40&rtt-max=500&reorder-buffer=60&congestion-control=1";
+	std::string rist_output_address = "127.0.0.1:5000?bandwidth=10000buffer-min=245&buffer-max=5000&rtt-min=40&rtt-max=500&reorder-buffer=120&congestion-control=1";
 	std::string rist_output_buffer;
 	std::string rist_output_bandwidth = "6000";
 	std::string rtmpAddress = "";
@@ -82,7 +88,6 @@ std::thread previewThread;
 std::thread encodeThread;
 std::thread ristThread;
 std::thread ristVideoThread;
-std::thread ristAudioThread;
 
 void initUi()
 {
@@ -150,8 +155,6 @@ void logAppend(std::string logMessage)
 	return;
 }
 
-
-
 void ristLogAppend(const char * logMessage)
 {
 	auto *logMessageCpy = new std::string;
@@ -166,26 +169,9 @@ int ristLog(void *arg, enum rist_log_level, const char *msg)
 	return 1;
 }
 
-static uint64_t risttools_convertVideoRTPtoNTP(uint32_t i_rtp)
-{
-	uint64_t i_ntp;
-	int32_t clock = 90000;
-	i_ntp = (uint64_t)i_rtp << 32;
-	i_ntp /= clock;
-	return i_ntp;
-}
-
-static uint64_t risttools_convertAudioRTPtoNTP(uint32_t i_rtp)
-{
-	uint64_t i_ntp;
-	int32_t clock = 48000;
-	i_ntp = (uint64_t)i_rtp << 32;
-	i_ntp /= clock;
-	return i_ntp;
-}
-
 void stopStream()
-{
+{	
+	
 	app.isRunning = false;
 	if (g_main_loop_is_running(app.loop))
 	{
@@ -200,6 +186,18 @@ void stopStream()
 	ui->btnStartStream->activate();
 	Fl::unlock();
 	Fl::awake();
+
+	try
+	{
+		Url url{ fmt::format("rist://{}", config.rist_output_address) };
+
+	rpc::client client(url.getHost(), 5999);
+	auto result = client.call("stop");
+	}
+	catch(const std::exception& e)
+	{
+		logAppend(e.what());
+	}
 }
 
 static gboolean sendBufferToRist(GstBuffer *buffer, RISTNetSender *sender, uint16_t streamId = NULL)
@@ -334,8 +332,8 @@ void gotRistStatistics(const rist_stats &statistics)
 
 	if (bitrateDelta != 0)
 	{
-		int newBitrate = max(min(app.currentBitrate += bitrateDelta / 2, maxBitrate), 1000);
-		app.currentBitrate = newBitrate;
+		int newBitrate = std::min(app.currentBitrate += bitrateDelta / 2, (int)maxBitrate);
+		app.currentBitrate = std::max(newBitrate, 1000);
 
 		g_object_set(G_OBJECT(app.videoEncoder), "bitrate", newBitrate, NULL);
 	}
@@ -389,7 +387,7 @@ void *runEncodeThread(void *p)
 	datasrc_pipeline_str += fmt::format("ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
 										config.ndi_input_name);
 
-	datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false sync=false name=videosink  mpegtsmux name=tsmux ! rtpmp2tpay ! .send_rtp_sink_0 rtpbin name=rtpbin rtpbin.send_rtp_src_0 ! videosink. ";
+	datasrc_pipeline_str += " appsink buffer-list=true wait-on-eos=false sync=false name=videosink  mpegtsmux name=tsmux ! tsparse alignment=7 ! videosink. ";
 
 	std::string audioDemux = " demux.audio ! queue ! audioresample ! audioconvert ";
 	std::string videoDemux = " demux.video ! queue ! videoconvert ";
@@ -505,10 +503,6 @@ void *runEncodeThread(void *p)
 	{
 		ristVideoThread.join();
 	}
-	if (ristAudioThread.joinable())
-	{
-		ristAudioThread.join();
-	}
 
 	thisRistSender.destroySender();
 
@@ -517,9 +511,17 @@ void *runEncodeThread(void *p)
 
 void startStream()
 {
-	rpc::client client("127.0.0.1", 5999);
-	auto result = client.call("start", fmt::format("rtmp://{} live=true", config.rtmpAddress));
+	try
+	{
+		Url url{ fmt::format("rist://{}", config.rist_output_address) };
 
+	rpc::client client(url.getHost(), 5999);
+	auto result = client.call("start", fmt::format("rtmp://{} live=true", config.rtmpAddress));
+	}
+	catch(const std::exception& e)
+	{
+		logAppend(e.what());
+	}
 	app.isRunning = true;
 	if (encodeThread.joinable())
 	{
@@ -533,6 +535,9 @@ void startStream()
 	ui->btnStopStream->activate();
 	Fl::unlock();
 	Fl::awake();
+
+	
+	
 }
 
 void *previewNDISource(void *p)
