@@ -25,7 +25,7 @@ Fl_Menu_Item* UserInterface::qsvEncoderChoice = UserInterface::menu_encoderSelec
 Fl_Menu_Item* UserInterface::nvencEncoderChoice = UserInterface::menu_encoderSelect + 3;
 
 UserInterface::UserInterface() {
-  { mainWindow = new Fl_Double_Window(1175, 612, "NDI RIST Encoder");
+  { mainWindow = new Fl_Double_Window(1330, 610, "NDI RIST Encoder");
     mainWindow->user_data((void*)(this));
     { inputGroup = new Fl_Group(35, 25, 235, 99, "Input");
       { ndiSourceSelect = new Fl_Choice(104, 32, 140, 22, "NDI Source");
@@ -53,16 +53,37 @@ UserInterface::UserInterface() {
       } // Fl_Input* encoderBitrateInput
       encodeGroup->end();
     } // Fl_Group* encodeGroup
-    { ristAddressInput = new Fl_Input(390, 33, 218, 22, "Address and Port");
-      ristAddressInput->callback((Fl_Callback*)rist_address_cb);
-    } // Fl_Input* ristAddressInput
-    { Fl_Group* o = new Fl_Group(685, 53, 92, 52, "RIST Settings");
-      { ristBufferInput = new Fl_Input(685, 53, 92, 22, "Buffer");
-        ristBufferInput->callback((Fl_Callback*)rist_buffer_cb);
-      } // Fl_Input* ristBufferInput
-      { ristBandwidthInput = new Fl_Input(685, 83, 92, 22, "Bandwidth");
+    { Fl_Group* o = new Fl_Group(390, 33, 218, 77, "Output");
+      { ristAddressInput = new Fl_Input(390, 33, 218, 22, "RIST Address");
+        ristAddressInput->callback((Fl_Callback*)rist_address_cb);
+      } // Fl_Input* ristAddressInput
+      { rtmpAddressInput = new Fl_Input(390, 60, 218, 22, "RTMP Server");
+        rtmpAddressInput->callback((Fl_Callback*)rtmp_address_cb);
+      } // Fl_Input* rtmpAddressInput
+      { rtmpKeyInput = new Fl_Input(390, 88, 218, 22, "RTMP Key");
+        rtmpKeyInput->callback((Fl_Callback*)rtmp_key_cb);
+      } // Fl_Input* rtmpKeyInput
+      o->end();
+    } // Fl_Group* o
+    { Fl_Group* o = new Fl_Group(765, 28, 95, 149, "RIST Settings");
+      { ristBandwidthInput = new Fl_Input(765, 28, 92, 22, "Bandwidth");
         ristBandwidthInput->callback((Fl_Callback*)rist_bandwidth_cb);
       } // Fl_Input* ristBandwidthInput
+      { ristBufferMinInput = new Fl_Input(765, 53, 92, 22, "Buffer Min");
+        ristBufferMinInput->callback((Fl_Callback*)rist_buffer_min_cb);
+      } // Fl_Input* ristBufferMinInput
+      { ristBufferMaxInput = new Fl_Input(765, 78, 92, 22, "Buffer Max");
+        ristBufferMaxInput->callback((Fl_Callback*)rist_buffer_max_cb);
+      } // Fl_Input* ristBufferMaxInput
+      { ristRttMinInput = new Fl_Input(765, 103, 92, 22, "RTT Min");
+        ristRttMinInput->callback((Fl_Callback*)rist_rtt_min_cb);
+      } // Fl_Input* ristRttMinInput
+      { ristRttMaxInput = new Fl_Input(765, 128, 92, 22, "RTT Max");
+        ristRttMaxInput->callback((Fl_Callback*)rist_rtt_max_cb);
+      } // Fl_Input* ristRttMaxInput
+      { ristReorderBufferInput = new Fl_Input(765, 153, 92, 22, "Reorder Buffer");
+        ristReorderBufferInput->callback((Fl_Callback*)rist_reorder_buffer_cb);
+      } // Fl_Input* ristReorderBufferInput
       o->end();
     } // Fl_Group* o
     { btnStartStream = new Fl_Button(610, 203, 218, 22, "Start Stream");
@@ -72,28 +93,25 @@ UserInterface::UserInterface() {
       btnStopStream->callback((Fl_Callback*)stopStream_cb);
       btnStopStream->deactivate();
     } // Fl_Button* btnStopStream
-    { statsGroup = new Fl_Group(845, 20, 266, 200, "Stats");
-      { bandwidthOutput = new Fl_Output(940, 45, 165, 24, "Bandwidth");
+    { statsGroup = new Fl_Group(1040, 25, 266, 200, "Stats");
+      { bandwidthOutput = new Fl_Output(1135, 50, 165, 24, "Bandwidth");
       } // Fl_Output* bandwidthOutput
-      { linkQualityOutput = new Fl_Output(940, 71, 165, 24, "Link Quality");
+      { linkQualityOutput = new Fl_Output(1135, 76, 165, 24, "Link Quality");
       } // Fl_Output* linkQualityOutput
-      { retransmittedPacketsOutput = new Fl_Output(940, 96, 165, 24, "Retransmitted Packets");
+      { retransmittedPacketsOutput = new Fl_Output(1135, 101, 165, 24, "Retransmitted Packets");
       } // Fl_Output* retransmittedPacketsOutput
-      { rttOutput = new Fl_Output(940, 146, 165, 24, "RTT");
+      { rttOutput = new Fl_Output(1135, 151, 165, 24, "RTT");
       } // Fl_Output* rttOutput
-      { totalPacketsOutput = new Fl_Output(940, 121, 165, 24, "Total Packets");
+      { totalPacketsOutput = new Fl_Output(1135, 126, 165, 24, "Packets");
       } // Fl_Output* totalPacketsOutput
-      { encodeBitrateOutput = new Fl_Output(940, 196, 165, 24, "Encode Bitrate");
+      { encodeBitrateOutput = new Fl_Output(1135, 201, 165, 24, "Encode Bitrate");
       } // Fl_Output* encodeBitrateOutput
       statsGroup->end();
     } // Fl_Group* statsGroup
-    { logDisplay = new Fl_Text_Display(21, 246, 1132, 164, "Log");
+    { logDisplay = new Fl_Text_Display(21, 246, 1294, 168, "Log");
     } // Fl_Text_Display* logDisplay
-    { ristLogDisplay = new Fl_Text_Display(22, 431, 1132, 164, "RIST Log");
+    { ristLogDisplay = new Fl_Text_Display(22, 431, 1293, 163, "RIST Log");
     } // Fl_Text_Display* ristLogDisplay
-    { rtmpAddressInput = new Fl_Input(390, 63, 218, 22, "RTMP");
-      rtmpAddressInput->callback((Fl_Callback*)rtmp_address_cb);
-    } // Fl_Input* rtmpAddressInput
     mainWindow->end();
     mainWindow->resizable(mainWindow);
   } // Fl_Double_Window* mainWindow

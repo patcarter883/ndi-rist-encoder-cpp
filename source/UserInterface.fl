@@ -8,7 +8,7 @@ class UserInterface {open
   } {
     Fl_Window mainWindow {
       label {NDI RIST Encoder} open
-      xywh {665 163 1175 612} type Double resizable visible
+      xywh {355 340 1330 610} type Double resizable visible
     } {
       Fl_Group inputGroup {
         label Input
@@ -91,24 +91,59 @@ class UserInterface {open
           xywh {141 196 90 24}
         }
       }
-      Fl_Input ristAddressInput {
-        label {Address and Port}
-        callback rist_address_cb
-        xywh {390 33 218 22}
+      Fl_Group {} {
+        label Output open
+        xywh {390 33 218 77}
+      } {
+        Fl_Input ristAddressInput {
+          label {RIST Address}
+          callback rist_address_cb selected
+          xywh {390 33 218 22}
+        }
+        Fl_Input rtmpAddressInput {
+          label {RTMP Server}
+          callback rtmp_address_cb selected
+          xywh {390 60 218 22}
+        }
+        Fl_Input rtmpKeyInput {
+          label {RTMP Key}
+          callback rtmp_key_cb selected
+          xywh {390 88 218 22}
+        }
       }
       Fl_Group {} {
-        label {RIST Settings}
-        xywh {685 53 92 52}
+        label {RIST Settings} open
+        xywh {765 28 95 149}
       } {
-        Fl_Input ristBufferInput {
-          label Buffer
-          callback rist_buffer_cb
-          xywh {685 53 92 22}
-        }
         Fl_Input ristBandwidthInput {
           label Bandwidth
           callback rist_bandwidth_cb
-          xywh {685 83 92 22}
+          xywh {765 28 92 22}
+        }
+        Fl_Input ristBufferMinInput {
+          label {Buffer Min}
+          callback rist_buffer_min_cb
+          xywh {765 53 92 22}
+        }
+        Fl_Input ristBufferMaxInput {
+          label {Buffer Max}
+          callback rist_buffer_max_cb
+          xywh {765 78 92 22}
+        }
+        Fl_Input ristRttMinInput {
+          label {RTT Min}
+          callback rist_rtt_min_cb
+          xywh {765 103 92 22}
+        }
+        Fl_Input ristRttMaxInput {
+          label {RTT Max}
+          callback rist_rtt_max_cb
+          xywh {765 128 92 22}
+        }
+        Fl_Input ristReorderBufferInput {
+          label {Reorder Buffer}
+          callback rist_reorder_buffer_cb
+          xywh {765 153 92 22}
         }
       }
       Fl_Button btnStartStream {
@@ -123,45 +158,40 @@ class UserInterface {open
       }
       Fl_Group statsGroup {
         label Stats
-        xywh {845 20 266 200}
+        xywh {1040 25 266 200}
       } {
         Fl_Output bandwidthOutput {
           label Bandwidth
-          xywh {940 45 165 24}
+          xywh {1135 50 165 24}
         }
         Fl_Output linkQualityOutput {
           label {Link Quality}
-          xywh {940 71 165 24}
+          xywh {1135 76 165 24}
         }
         Fl_Output retransmittedPacketsOutput {
           label {Retransmitted Packets}
-          xywh {940 96 165 24}
+          xywh {1135 101 165 24}
         }
         Fl_Output rttOutput {
           label RTT
-          xywh {940 146 165 24}
+          xywh {1135 151 165 24}
         }
         Fl_Output totalPacketsOutput {
-          label {Total Packets}
-          xywh {940 121 165 24}
+          label Packets
+          xywh {1135 126 165 24}
         }
         Fl_Output encodeBitrateOutput {
           label {Encode Bitrate}
-          xywh {940 196 165 24}
+          xywh {1135 201 165 24}
         }
       }
       Fl_Text_Display logDisplay {
         label Log
-        xywh {21 246 1132 164}
+        xywh {21 246 1294 168}
       }
       Fl_Text_Display ristLogDisplay {
         label {RIST Log}
-        xywh {22 431 1132 164}
-      }
-      Fl_Input rtmpAddressInput {
-        label RTMP
-        callback rtmp_address_cb selected
-        xywh {390 63 218 22}
+        xywh {22 431 1293 163}
       }
     }
   }

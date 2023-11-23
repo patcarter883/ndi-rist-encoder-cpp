@@ -14,13 +14,18 @@ extern void select_encoder_cb(Fl_Menu_*, void*);
 #include <FL/Fl_Input.H>
 extern void encoder_bitrate_cb(Fl_Input*, void*);
 extern void rist_address_cb(Fl_Input*, void*);
-extern void rist_buffer_cb(Fl_Input*, void*);
+extern void rtmp_address_cb(Fl_Input*, void*);
+extern void rtmp_key_cb(Fl_Input*, void*);
 extern void rist_bandwidth_cb(Fl_Input*, void*);
+extern void rist_buffer_min_cb(Fl_Input*, void*);
+extern void rist_buffer_max_cb(Fl_Input*, void*);
+extern void rist_rtt_min_cb(Fl_Input*, void*);
+extern void rist_rtt_max_cb(Fl_Input*, void*);
+extern void rist_reorder_buffer_cb(Fl_Input*, void*);
 extern void startStream_cb(Fl_Button*, void*);
 extern void stopStream_cb(Fl_Button*, void*);
 #include <FL/Fl_Output.H>
 #include <FL/Fl_Text_Display.H>
-extern void rtmp_address_cb(Fl_Input*, void*);
 
 class UserInterface {
 public:
@@ -44,8 +49,14 @@ public:
   static Fl_Menu_Item *nvencEncoderChoice;
   Fl_Input *encoderBitrateInput;
   Fl_Input *ristAddressInput;
-  Fl_Input *ristBufferInput;
+  Fl_Input *rtmpAddressInput;
+  Fl_Input *rtmpKeyInput;
   Fl_Input *ristBandwidthInput;
+  Fl_Input *ristBufferMinInput;
+  Fl_Input *ristBufferMaxInput;
+  Fl_Input *ristRttMinInput;
+  Fl_Input *ristRttMaxInput;
+  Fl_Input *ristReorderBufferInput;
   Fl_Button *btnStartStream;
   Fl_Button *btnStopStream;
   Fl_Group *statsGroup;
@@ -57,7 +68,6 @@ public:
   Fl_Output *encodeBitrateOutput;
   Fl_Text_Display *logDisplay;
   Fl_Text_Display *ristLogDisplay;
-  Fl_Input *rtmpAddressInput;
   void show(int argc, char **argv);
 };
 #endif

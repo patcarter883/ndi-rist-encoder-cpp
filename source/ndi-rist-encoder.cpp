@@ -73,10 +73,15 @@ struct _Config
 	std::string encoder = "software";
 	std::string transport = "m2ts";
 	std::string bitrate = "4300";
-	std::string rist_output_address = "127.0.0.1:5000?bandwidth=10000buffer-min=245&buffer-max=5000&rtt-min=40&rtt-max=500&reorder-buffer=120&congestion-control=1";
-	std::string rist_output_buffer;
+	std::string rist_output_address = "127.0.0.1:5000";
+	std::string rist_output_buffer_min = "245";
+	std::string rist_output_buffer_max = "5000";
+	std::string rist_output_rtt_min = "40";
+	std::string rist_output_rtt_max = "500";
+	std::string rist_output_reorder_buffer = "120";
 	std::string rist_output_bandwidth = "6000";
-	std::string rtmpAddress = "";
+	std::string rtmpAddress = "sydney.restream.io/live";
+	std::string rtmpKey = "";
 };
 
 /* Globals */
@@ -95,7 +100,11 @@ void initUi()
 	ui->ristLogDisplay->buffer(ristLogBuff);
 	ui->ristAddressInput->value(config.rist_output_address.c_str());
 	ui->ristBandwidthInput->value(config.rist_output_bandwidth.c_str());
-	ui->ristBufferInput->value(config.rist_output_buffer.c_str());
+	ui->ristBufferMaxInput->value(config.rist_output_buffer_max.c_str());
+	ui->ristBufferMinInput->value(config.rist_output_buffer_min.c_str());
+	ui->ristRttMaxInput->value(config.rist_output_rtt_max.c_str());
+	ui->ristRttMinInput->value(config.rist_output_rtt_min.c_str());
+	ui->ristReorderBufferInput->value(config.rist_output_reorder_buffer.c_str());
 	ui->encoderBitrateInput->value(config.bitrate.c_str());
 	ui->show(NULL, NULL);
 }
@@ -361,7 +370,13 @@ void *runEncodeThread(void *p)
 	RISTNetSender::RISTNetSenderSettings mySendConfiguration;
 
 	// Generate a vector of RIST URL's,  ip(name), ports, RIST URL output, listen(true) or send mode (false)
-	std::string lURL = fmt::format("rist://{}", config.rist_output_address);
+	std::string lURL = fmt::format("rist://{}??bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&reorder-buffer={}", 
+		config.rist_output_address,
+		config.rist_output_buffer_min,
+		config.rist_output_buffer_max,
+		config.rist_output_rtt_min,
+		config.rist_output_rtt_max,
+		config.rist_output_reorder_buffer);
 	std::vector<std::tuple<std::string, int>> interfaceListSender;
 	// if (RISTNetTools::buildRISTURL(config.rist_output_address, config.rist_output_port, lURL, false))
 	// {
@@ -516,7 +531,7 @@ void startStream()
 		Url url{ fmt::format("rist://{}", config.rist_output_address) };
 
 	rpc::client client(url.getHost(), 5999);
-	auto result = client.call("start", fmt::format("rtmp://{} live=true", config.rtmpAddress));
+	auto result = client.call("start", fmt::format("rtmp://{}/{} live=true", config.rtmpAddress, config.rtmpKey));
 	}
 	catch(const std::exception& e)
 	{
@@ -665,14 +680,32 @@ void rtmp_address_cb(Fl_Input *o, void *v)
 	config.rtmpAddress = o->value();
 }
 
-void rist_buffer_cb(Fl_Input *o, void *v)
+void rtmp_key_cb(Fl_Input *o, void *v)
 {
-	config.rist_output_buffer = o->value();
+	config.rtmpKey = o->value();
 }
 
 void rist_bandwidth_cb(Fl_Input *o, void *v)
 {
 	config.rist_output_bandwidth = o->value();
+}
+
+void rist_buffer_min_cb(Fl_Input *o, void *v)
+{
+	config.rist_output_buffer_min = o->value();
+}
+
+void rist_buffer_max_cb(Fl_Input* o, void* v){
+	config.rist_output_buffer_max = o->value();
+}
+void rist_rtt_min_cb(Fl_Input* o, void* v){
+	config.rist_output_rtt_min = o->value();
+}
+void rist_rtt_max_cb(Fl_Input* o, void* v){
+	config.rist_output_rtt_max = o->value();
+}
+void rist_reorder_buffer_cb(Fl_Input* o, void* v){
+	config.rist_output_reorder_buffer = o->value();
 }
 
 void encoder_bitrate_cb(Fl_Input *o, void *v)
