@@ -7,6 +7,8 @@ AV1 really works over the MPEG Transport Stream if you use the [GStreamer](https
 
 Can control the NDI RIST server to automatically start a RIST receiver and GStreamer pipeline that will transcode to H264 if needed, and send to an RTMP server.
 
+![image](https://github.com/patcarter883/ndi-rist-encoder-cpp/assets/33055183/5e1ea5a9-eaa5-447f-8413-673757634c45)
+
 # NDI RIST Server
 Receives from the NDI RIST Encoder and transcodes to FLV over RTMP for sending to the usual suspects of live streaming destinations. This is currently a fixed GStreamer pipeline that uses Nvidia hardware decode and encode.
 
