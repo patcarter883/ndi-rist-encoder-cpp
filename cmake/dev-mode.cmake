@@ -10,7 +10,7 @@ add_custom_target(
     COMMAND ndi-rist_exe
     VERBATIM
 )
-add_dependencies(run-exe ndi-rist_exe)
+add_dependencies(run-exe ndi-rist-encoder_exe ndi-rist-server_exe)
 
 option(BUILD_MCSS_DOCS "Build documentation using Doxygen and m.css" OFF)
 if(BUILD_MCSS_DOCS)

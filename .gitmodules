@@ -1,0 +1,10 @@
+[submodule "extern/rist-cpp"]
+	path = extern/rist-cpp
+	url = https://github.com/patcarter883/rist-cpp.git
+	branch = swxtch
+[submodule "extern/rpclib"]
+	path = extern/rpclib
+	url = https://github.com/rpclib/rpclib.git
+[submodule "vcpkg"]
+	path = vcpkg
+	url = https://github.com/Microsoft/vcpkg.git

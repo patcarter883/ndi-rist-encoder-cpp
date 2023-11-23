@@ -1,0 +1,172 @@
+# data file for the Fltk User Interface Designer (fluid)
+version 1.0308
+header_name {.h}
+code_name {.cxx}
+class UserInterface {open
+} {
+  Function {UserInterface()} {open
+  } {
+    Fl_Window mainWindow {
+      label {NDI RIST Encoder} open
+      xywh {665 163 1175 612} type Double resizable visible
+    } {
+      Fl_Group inputGroup {
+        label Input
+        xywh {35 25 235 99}
+      } {
+        Fl_Choice ndiSourceSelect {
+          label {NDI Source}
+          xywh {104 32 140 22} down_box BORDER_BOX
+        } {}
+        Fl_Button previewSourceBtn {
+          label {Preview Source}
+          callback preview_cb
+          xywh {64 92 185 22}
+        }
+        Fl_Button btnRefreshSources {
+          label {Refresh Sources}
+          callback refreshSources_cb
+          xywh {64 62 185 22}
+        }
+      }
+      Fl_Group encodeGroup {
+        label Encode
+        xywh {26 143 249 97}
+      } {
+        Fl_Choice codecSelect {
+          label Codec
+          xywh {140 148 92 22} down_box BORDER_BOX
+        } {
+          MenuItem h264CodecChoice {
+            label H264
+            user_data {"h264"}
+            callback select_codec_cb
+            xywh {0 0 100 20}
+          }
+          MenuItem h265CodecChoice {
+            label H265
+            user_data {"h265"}
+            callback select_codec_cb
+            xywh {0 0 100 20}
+          }
+          MenuItem av1CodecChoice {
+            label AV1
+            user_data {"av1"}
+            callback select_codec_cb
+            xywh {0 0 100 20}
+          }
+        }
+        Fl_Choice encoderSelect {
+          label Encoder
+          xywh {141 173 92 22} down_box BORDER_BOX
+        } {
+          MenuItem softwareEncoderChoice {
+            label Software
+            user_data {"software"}
+            callback select_encoder_cb
+            xywh {10 10 100 20}
+          }
+          MenuItem amdEncoderChoice {
+            label AMD
+            user_data {"amd"}
+            callback select_encoder_cb
+            xywh {10 10 100 20}
+          }
+          MenuItem qsvEncoderChoice {
+            label {Intel QSV}
+            user_data {"qsv"}
+            callback select_encoder_cb
+            xywh {10 10 100 20}
+          }
+          MenuItem nvencEncoderChoice {
+            label {Nvidia NVENC}
+            user_data {"nvenc"}
+            callback select_encoder_cb
+            xywh {20 20 100 20}
+          }
+        }
+        Fl_Input encoderBitrateInput {
+          label {Video Bitrate}
+          callback encoder_bitrate_cb
+          xywh {141 196 90 24}
+        }
+      }
+      Fl_Input ristAddressInput {
+        label {Address and Port}
+        callback rist_address_cb
+        xywh {390 33 218 22}
+      }
+      Fl_Group {} {
+        label {RIST Settings}
+        xywh {685 53 92 52}
+      } {
+        Fl_Input ristBufferInput {
+          label Buffer
+          callback rist_buffer_cb
+          xywh {685 53 92 22}
+        }
+        Fl_Input ristBandwidthInput {
+          label Bandwidth
+          callback rist_bandwidth_cb
+          xywh {685 83 92 22}
+        }
+      }
+      Fl_Button btnStartStream {
+        label {Start Stream}
+        callback startStream_cb
+        xywh {610 203 218 22}
+      }
+      Fl_Button btnStopStream {
+        label {Stop Stream}
+        callback stopStream_cb
+        xywh {335 203 218 22} deactivate
+      }
+      Fl_Group statsGroup {
+        label Stats
+        xywh {845 20 266 200}
+      } {
+        Fl_Output bandwidthOutput {
+          label Bandwidth
+          xywh {940 45 165 24}
+        }
+        Fl_Output linkQualityOutput {
+          label {Link Quality}
+          xywh {940 71 165 24}
+        }
+        Fl_Output retransmittedPacketsOutput {
+          label {Retransmitted Packets}
+          xywh {940 96 165 24}
+        }
+        Fl_Output rttOutput {
+          label RTT
+          xywh {940 146 165 24}
+        }
+        Fl_Output totalPacketsOutput {
+          label {Total Packets}
+          xywh {940 121 165 24}
+        }
+        Fl_Output encodeBitrateOutput {
+          label {Encode Bitrate}
+          xywh {940 196 165 24}
+        }
+      }
+      Fl_Text_Display logDisplay {
+        label Log
+        xywh {21 246 1132 164}
+      }
+      Fl_Text_Display ristLogDisplay {
+        label {RIST Log}
+        xywh {22 431 1132 164}
+      }
+      Fl_Input rtmpAddressInput {
+        label RTMP
+        callback rtmp_address_cb selected
+        xywh {390 63 218 22}
+      }
+    }
+  }
+  Function {show(int argc, char **argv)} {open
+  } {
+    code {mainWindow->show(argc, argv);} {}
+  }
+}
