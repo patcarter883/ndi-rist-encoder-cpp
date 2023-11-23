@@ -16,6 +16,8 @@ extern void encoder_bitrate_cb(Fl_Input*, void*);
 extern void rist_address_cb(Fl_Input*, void*);
 extern void rtmp_address_cb(Fl_Input*, void*);
 extern void rtmp_key_cb(Fl_Input*, void*);
+#include <FL/Fl_Check_Button.H>
+extern void use_rpc_cb(Fl_Check_Button*, void*);
 extern void rist_bandwidth_cb(Fl_Input*, void*);
 extern void rist_buffer_min_cb(Fl_Input*, void*);
 extern void rist_buffer_max_cb(Fl_Input*, void*);
@@ -51,6 +53,7 @@ public:
   Fl_Input *ristAddressInput;
   Fl_Input *rtmpAddressInput;
   Fl_Input *rtmpKeyInput;
+  Fl_Check_Button *useRpcInput;
   Fl_Input *ristBandwidthInput;
   Fl_Input *ristBufferMinInput;
   Fl_Input *ristBufferMaxInput;

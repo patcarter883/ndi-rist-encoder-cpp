@@ -93,22 +93,27 @@ class UserInterface {open
       }
       Fl_Group {} {
         label Output open
-        xywh {390 33 218 77}
+        xywh {390 33 218 107}
       } {
         Fl_Input ristAddressInput {
           label {RIST Address}
-          callback rist_address_cb selected
+          callback rist_address_cb
           xywh {390 33 218 22}
         }
         Fl_Input rtmpAddressInput {
           label {RTMP Server}
-          callback rtmp_address_cb selected
+          callback rtmp_address_cb
           xywh {390 60 218 22}
         }
         Fl_Input rtmpKeyInput {
           label {RTMP Key}
-          callback rtmp_key_cb selected
+          callback rtmp_key_cb
           xywh {390 88 218 22}
+        }
+        Fl_Check_Button useRpcInput {
+          label {Use server remote control.}
+          callback use_rpc_cb selected
+          xywh {390 115 25 25} down_box DOWN_BOX
         }
       }
       Fl_Group {} {

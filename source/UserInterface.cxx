@@ -53,7 +53,7 @@ UserInterface::UserInterface() {
       } // Fl_Input* encoderBitrateInput
       encodeGroup->end();
     } // Fl_Group* encodeGroup
-    { Fl_Group* o = new Fl_Group(390, 33, 218, 77, "Output");
+    { Fl_Group* o = new Fl_Group(390, 33, 218, 107, "Output");
       { ristAddressInput = new Fl_Input(390, 33, 218, 22, "RIST Address");
         ristAddressInput->callback((Fl_Callback*)rist_address_cb);
       } // Fl_Input* ristAddressInput
@@ -63,6 +63,10 @@ UserInterface::UserInterface() {
       { rtmpKeyInput = new Fl_Input(390, 88, 218, 22, "RTMP Key");
         rtmpKeyInput->callback((Fl_Callback*)rtmp_key_cb);
       } // Fl_Input* rtmpKeyInput
+      { useRpcInput = new Fl_Check_Button(390, 115, 25, 25, "Use server remote control.");
+        useRpcInput->down_box(FL_DOWN_BOX);
+        useRpcInput->callback((Fl_Callback*)use_rpc_cb);
+      } // Fl_Check_Button* useRpcInput
       o->end();
     } // Fl_Group* o
     { Fl_Group* o = new Fl_Group(765, 28, 95, 149, "RIST Settings");

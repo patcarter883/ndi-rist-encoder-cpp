@@ -64,10 +64,6 @@ typedef struct _Config Config;
 
 struct _Config
 {
-	guint width;
-	guint height;
-	guint framerate;
-
 	std::string ndi_input_name;
 	std::string codec = "h264";
 	std::string encoder = "software";
@@ -82,6 +78,7 @@ struct _Config
 	std::string rist_output_bandwidth = "6000";
 	std::string rtmpAddress = "sydney.restream.io/live";
 	std::string rtmpKey = "";
+	int useRpcControl = 1;
 };
 
 /* Globals */
@@ -106,6 +103,7 @@ void initUi()
 	ui->ristRttMinInput->value(config.rist_output_rtt_min.c_str());
 	ui->ristReorderBufferInput->value(config.rist_output_reorder_buffer.c_str());
 	ui->encoderBitrateInput->value(config.bitrate.c_str());
+	ui->useRpcInput->value(config.useRpcControl);
 	ui->show(NULL, NULL);
 }
 
@@ -196,17 +194,22 @@ void stopStream()
 	Fl::unlock();
 	Fl::awake();
 
-	try
+	if (config.useRpcControl)
 	{
-		Url url{ fmt::format("rist://{}", config.rist_output_address) };
+		try
+		{
+			Url url{ fmt::format("rist://{}", config.rist_output_address) };
 
-	rpc::client client(url.getHost(), 5999);
-	auto result = client.call("stop");
+		rpc::client client(url.getHost(), 5999);
+		auto result = client.call("stop");
+		}
+		catch(const std::exception& e)
+		{
+			logAppend(e.what());
+		}
 	}
-	catch(const std::exception& e)
-	{
-		logAppend(e.what());
-	}
+	
+	
 }
 
 static gboolean sendBufferToRist(GstBuffer *buffer, RISTNetSender *sender, uint16_t streamId = NULL)
@@ -370,8 +373,9 @@ void *runEncodeThread(void *p)
 	RISTNetSender::RISTNetSenderSettings mySendConfiguration;
 
 	// Generate a vector of RIST URL's,  ip(name), ports, RIST URL output, listen(true) or send mode (false)
-	std::string lURL = fmt::format("rist://{}??bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&reorder-buffer={}", 
+	std::string lURL = fmt::format("rist://{}?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&reorder-buffer={}", 
 		config.rist_output_address,
+		config.rist_output_bandwidth,
 		config.rist_output_buffer_min,
 		config.rist_output_buffer_max,
 		config.rist_output_rtt_min,
@@ -526,17 +530,21 @@ void *runEncodeThread(void *p)
 
 void startStream()
 {
-	try
+	if (config.useRpcControl)
 	{
-		Url url{ fmt::format("rist://{}", config.rist_output_address) };
+		try
+		{
+			Url url{ fmt::format("rist://{}", config.rist_output_address) };
 
-	rpc::client client(url.getHost(), 5999);
-	auto result = client.call("start", fmt::format("rtmp://{}/{} live=true", config.rtmpAddress, config.rtmpKey));
+		rpc::client client(url.getHost(), 5999);
+		auto result = client.call("start", fmt::format("rtmp://{}/{} live=true", config.rtmpAddress, config.rtmpKey));
+		}
+		catch(const std::exception& e)
+		{
+			logAppend(e.what());
+		}
 	}
-	catch(const std::exception& e)
-	{
-		logAppend(e.what());
-	}
+	
 	app.isRunning = true;
 	if (encodeThread.joinable())
 	{
@@ -550,9 +558,6 @@ void startStream()
 	ui->btnStopStream->activate();
 	Fl::unlock();
 	Fl::awake();
-
-	
-	
 }
 
 void *previewNDISource(void *p)
@@ -704,13 +709,17 @@ void rist_rtt_min_cb(Fl_Input* o, void* v){
 void rist_rtt_max_cb(Fl_Input* o, void* v){
 	config.rist_output_rtt_max = o->value();
 }
-void rist_reorder_buffer_cb(Fl_Input* o, void* v){
+void rist_reorder_buffer_cb(Fl_Input* o, void* v) {
 	config.rist_output_reorder_buffer = o->value();
 }
 
 void encoder_bitrate_cb(Fl_Input *o, void *v)
 {
 	config.bitrate = o->value();
+}
+
+void use_rpc_cb(Fl_Check_Button* o, void* v) {
+	config.useRpcControl = o->value();
 }
 
 void *findNdiDevices(void *p)
