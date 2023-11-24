@@ -1,6 +1,8 @@
 #include <iostream>
-using std::cout;
+
+#include "gst/gstmessage.h"
 using std::cerr;
+using std::cout;
 using std::endl;
 #include <thread>
 #include <vector>
@@ -111,8 +113,8 @@ void stop() {
   }
 }
 
-static gboolean
-datasrc_message(GstBus *bus, GstMessage *message, App *app)
+static auto datasrc_message(GstBus* bus, GstMessage* message, App* app)
+    -> gboolean
 {
 
 	switch (GST_MESSAGE_TYPE(message))

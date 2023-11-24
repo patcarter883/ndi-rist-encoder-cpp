@@ -10,6 +10,15 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include <string>
+using std::string;
+
+#include <string_view>
+using std::string_view;
+
+#include <map>
+using std::multimap;
+
 
 namespace homer6{
 
