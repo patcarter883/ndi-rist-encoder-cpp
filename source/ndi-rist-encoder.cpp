@@ -513,7 +513,7 @@ void* runEncodeThread()
           config.bitrate);
     } else if (config.codec == "h265") {
       video_encoder = fmt::format(
-          "x265enc name=vidEncoder bitrate={} sliced-threads=true "
+          "x265enc name=vidEncoder bitrate={} "
           "speed-preset=fast tune=zerolatency ! h265parse ",
           config.bitrate);
     } else if (config.codec == "av1") {
