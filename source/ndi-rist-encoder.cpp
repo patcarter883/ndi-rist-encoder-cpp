@@ -162,7 +162,7 @@ void ristLogAppend_cb(void* msgPtr)
 void logAppend(string logMessage)
 {
   auto* logMessageCpy = new string;
-  *logMessageCpy = strdup(logMessage.c_str());
+  *logMessageCpy = _strdup(logMessage.c_str());
   Fl::awake(logAppend_cb, logMessageCpy);
   return;
 }
@@ -170,7 +170,7 @@ void logAppend(string logMessage)
 void ristLogAppend(const char* logMessage)
 {
   auto* logMessageCpy = new string;
-  *logMessageCpy = strdup(logMessage);
+  *logMessageCpy = _strdup(logMessage);
   Fl::awake(ristLogAppend_cb, logMessageCpy);
   return;
 }

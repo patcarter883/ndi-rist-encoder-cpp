@@ -68,31 +68,35 @@ find_package(FLTK CONFIG REQUIRED)
 add_subdirectory(extern/rpclib)
 add_subdirectory(extern/rist-cpp)
 
+if (WIN32)
+target_compile_definitions(ristnet PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
 # ---- Declare executable ----
 
-add_executable(ndi-rist-encoder_exe WIN32 source/ndi-rist-encoder.cpp source/Url.h source/Url.cc)
-add_executable(ndi-rist-encoder::exe ALIAS ndi-rist-encoder_exe)
+add_executable(ndi-rist-encoder WIN32 source/ndi-rist-encoder.cpp source/Url.h source/Url.cc)
+# add_executable(ndi-rist-encoder::exe ALIAS ndi-rist-encoder_exe)
 
-set_property(TARGET ndi-rist-encoder_exe PROPERTY OUTPUT_NAME ndi-rist-encoder)
+# set_property(TARGET ndi-rist-encoder PROPERTY OUTPUT_NAME ndi-rist-encoder)
 
-target_compile_features(ndi-rist-encoder_exe PRIVATE cxx_std_20)
+target_compile_features(ndi-rist-encoder PRIVATE cxx_std_20)
 
-target_include_directories(ndi-rist-encoder_exe PUBLIC ${FLTK_INCLUDE_DIRS})
-target_include_directories(ndi-rist-encoder_exe PUBLIC ${GSTREAMER_INCLUDE_DIRS})
-target_include_directories(ndi-rist-encoder_exe PRIVATE ${NDI_INCLUDE_DIRS})
+target_include_directories(ndi-rist-encoder PUBLIC ${FLTK_INCLUDE_DIRS})
+target_include_directories(ndi-rist-encoder PUBLIC ${GSTREAMER_INCLUDE_DIRS})
+target_include_directories(ndi-rist-encoder PRIVATE ${NDI_INCLUDE_DIRS})
 
-target_link_libraries(ndi-rist-encoder_exe PRIVATE fmt::fmt rpc)
-target_link_libraries(ndi-rist-encoder_exe PRIVATE fltk fltk_gl fltk_forms fltk_images) 
-target_link_libraries(ndi-rist-encoder_exe PRIVATE ${NDI_LIBRARIES}) 
+target_link_libraries(ndi-rist-encoder PRIVATE fmt::fmt rpc)
+target_link_libraries(ndi-rist-encoder PRIVATE fltk fltk_gl fltk_forms fltk_images) 
+target_link_libraries(ndi-rist-encoder PRIVATE ${NDI_LIBRARIES}) 
 
 IF (WIN32)
 
-    target_link_libraries(ndi-rist-encoder_exe PRIVATE ${GSTREAMER_LIBRARIES})
-    target_link_libraries(ndi-rist-encoder_exe PRIVATE Threads::Threads)
+    target_link_libraries(ndi-rist-encoder PRIVATE ${GSTREAMER_LIBRARIES})
+    target_link_libraries(ndi-rist-encoder PRIVATE Threads::Threads iphlpapi wsock32 ws2_32)
 
 ELSE()
 
-    target_link_libraries(ndi-rist-encoder_exe PRIVATE
+    target_link_libraries(ndi-rist-encoder PRIVATE
     PkgConfig::gstreamer
     PkgConfig::gstreamer-sdp
     PkgConfig::gstreamer-rtp
@@ -100,31 +104,31 @@ ELSE()
     PkgConfig::gstreamer-video)
 ENDIF()
 
-target_link_libraries(ndi-rist-encoder_exe PRIVATE rpc ristnet)
+target_link_libraries(ndi-rist-encoder PRIVATE rpc ristnet)
 
-add_dependencies(ndi-rist-encoder_exe ristnet rpc)
+add_dependencies(ndi-rist-encoder ristnet rpc)
 
 # ---- Declare executable ----
 
-add_executable(ndi-rist-server_exe WIN32 source/ndi-rist-server.cpp)
-add_executable(ndi-rist-server::exe ALIAS ndi-rist-server_exe)
+add_executable(ndi-rist-server WIN32 source/ndi-rist-server.cpp)
+# add_executable(ndi-rist-server::exe ALIAS ndi-rist-server_exe)
 
-set_property(TARGET ndi-rist-server_exe PROPERTY OUTPUT_NAME ndi-rist-server)
+# set_property(TARGET ndi-rist-server PROPERTY OUTPUT_NAME ndi-rist-server)
 
-target_compile_features(ndi-rist-server_exe PRIVATE cxx_std_20)
+target_compile_features(ndi-rist-server PRIVATE cxx_std_20)
 
-target_include_directories(ndi-rist-server_exe PUBLIC ${GSTREAMER_INCLUDE_DIRS})
-target_include_directories(ndi-rist-server_exe PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/)
-target_include_directories(ndi-rist-server_exe PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/rist/inc/ ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/rist/include/ ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/rist/include/librist ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/rist/build/include/librist)
+target_include_directories(ndi-rist-server PUBLIC ${GSTREAMER_INCLUDE_DIRS})
+target_include_directories(ndi-rist-server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/)
+target_include_directories(ndi-rist-server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/rist/inc/ ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/rist/include/ ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/rist/include/librist ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/rist/build/include/librist)
 
 IF (WIN32)
 
-    target_link_libraries(ndi-rist-server_exe PRIVATE ${GSTREAMER_LIBRARIES})
-    target_link_libraries(ndi-rist-server_exe PRIVATE Threads::Threads)
+    target_link_libraries(ndi-rist-server PRIVATE ${GSTREAMER_LIBRARIES})
+    target_link_libraries(ndi-rist-server PRIVATE Threads::Threads)
 
 ELSE()
 
-    target_link_libraries(ndi-rist-server_exe PRIVATE
+    target_link_libraries(ndi-rist-server PRIVATE
     PkgConfig::gstreamer
     PkgConfig::gstreamer-sdp
     PkgConfig::gstreamer-rtp
@@ -132,9 +136,9 @@ ELSE()
     PkgConfig::gstreamer-video)
 ENDIF()
 
-target_link_libraries(ndi-rist-server_exe PRIVATE rpc ristnet)
+target_link_libraries(ndi-rist-server PRIVATE rpc ristnet)
 
-add_dependencies(ndi-rist-server_exe rpc ristnet)
+add_dependencies(ndi-rist-server rpc ristnet)
 # ---- Install rules ----
 
 if(NOT CMAKE_SKIP_INSTALL_RULES)

@@ -1,5 +1,5 @@
 install(
-    TARGETS ndi-rist-encoder_exe ndi-rist-server_exe
+    TARGETS ndi-rist-encoder ndi-rist-server
     RUNTIME COMPONENT ndi-rist_Runtime
 )
 

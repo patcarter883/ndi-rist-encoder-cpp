@@ -100,8 +100,7 @@
     {
       "name": "ci-win64",
       "inherits": ["flags-msvc", "ci-std"],
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
+      "generator": "Ninja",
       "hidden": true
     },
     {
@@ -151,6 +150,13 @@
     {
       "name": "ci-windows",
       "inherits": ["ci-build", "ci-win64", "dev-mode", "vcpkg", "vcpkg-win64-static"]
+    },
+    {
+      "name": "release-windows",
+      "inherits": ["ci-build", "ci-win64", "vcpkg", "vcpkg-win64-static"],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
     }
   ]
 }
