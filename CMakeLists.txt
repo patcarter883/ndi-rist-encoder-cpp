@@ -106,7 +106,7 @@ add_dependencies(ndi-rist-encoder_exe ristnet rpc)
 
 # ---- Declare executable ----
 
-add_executable(ndi-rist-server_exe WIN32 source/ndi-rist-server.cpp source/ndi-rist-encoder.h)
+add_executable(ndi-rist-server_exe WIN32 source/ndi-rist-server.cpp)
 add_executable(ndi-rist-server::exe ALIAS ndi-rist-server_exe)
 
 set_property(TARGET ndi-rist-server_exe PROPERTY OUTPUT_NAME ndi-rist-server)
