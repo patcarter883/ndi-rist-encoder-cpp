@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <thread>
+#include <future>
 
 #include <FL/Fl.H>
 #include <RISTNet.h>
@@ -227,10 +228,28 @@ void stopStream()
 
   if (config.use_rpc_control) {
     try {
-      Url url {fmt::format("rist://{}", config.rist_output_address)};
+      
 
-      rpc::client client(url.getHost(), app.rpc_port);
-      auto result = client.call("stop");
+      std::future<void> future = std::async(std::launch::async, []()
+        {
+            Url url {fmt::format("rist://{}", config.rist_output_address)};
+            rpc::client client(url.getHost(), app.rpc_port);
+            client.call("stop");
+        });
+
+      std::future_status status;
+
+      using namespace std::chrono_literals;
+      switch (status = future.wait_for(1s); status)
+        {
+            case std::future_status::timeout:
+                logAppend("Server stop timed out.");
+                break;
+            case std::future_status::ready:
+                logAppend("Server pipeline stopped.");
+                break;
+        }
+
     } catch (const std::exception& e) {
       logAppend(e.what());
     }
