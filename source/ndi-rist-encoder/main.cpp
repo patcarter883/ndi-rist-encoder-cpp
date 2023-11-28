@@ -182,8 +182,6 @@ gboolean sendBufferToRist(GstBuffer* buffer,
                           RISTNetSender* sender,
                           uint16_t streamId)
 {
-  if (buffer)
-  {
    GstMapInfo info;
 
     gst_buffer_map(buffer, &info, GST_MAP_READ);
@@ -193,9 +191,6 @@ gboolean sendBufferToRist(GstBuffer* buffer,
     sender->sendData(buf_data, buf_size, 0, streamId);
 
     return true;
-  }
-  
-  return false;
 }
 
 // gboolean sendBufferListToRist(GstBuffer** buffer,
@@ -262,7 +257,10 @@ void* runRistVideo(RISTNetSender* sender)
   while (app.is_running) {
     sample = gst_app_sink_pull_sample(GST_APP_SINK(app.video_sink));
     buffer = gst_sample_get_buffer(sample);
-    sendBufferToRist(buffer, sender);    
+    if (buffer)
+    {
+      sendBufferToRist(buffer, sender);
+    }  
     gst_sample_unref(sample);
   }
 
