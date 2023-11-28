@@ -74,10 +74,7 @@ endif()
 
 # ---- Declare executable ----
 
-add_executable(ndi-rist-encoder WIN32 source/ndi-rist-encoder.cpp source/Url.h source/Url.cc)
-# add_executable(ndi-rist-encoder::exe ALIAS ndi-rist-encoder_exe)
-
-# set_property(TARGET ndi-rist-encoder PROPERTY OUTPUT_NAME ndi-rist-encoder)
+add_executable(ndi-rist-encoder WIN32 source/ndi-rist-encoder/main.cpp source/ndi-rist-encoder/main.h source/ndi-rist-encoder/Url.h source/ndi-rist-encoder/Url.cc)
 
 target_compile_features(ndi-rist-encoder PRIVATE cxx_std_20)
 
@@ -110,10 +107,7 @@ add_dependencies(ndi-rist-encoder ristnet rpc)
 
 # ---- Declare executable ----
 
-add_executable(ndi-rist-server WIN32 source/ndi-rist-server.cpp)
-# add_executable(ndi-rist-server::exe ALIAS ndi-rist-server_exe)
-
-# set_property(TARGET ndi-rist-server PROPERTY OUTPUT_NAME ndi-rist-server)
+add_executable(ndi-rist-server WIN32 source/ndi-rist-server/main.cpp source/ndi-rist-server/main.h)
 
 target_compile_features(ndi-rist-server PRIVATE cxx_std_20)
 
@@ -124,7 +118,7 @@ target_include_directories(ndi-rist-server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ex
 IF (WIN32)
 
     target_link_libraries(ndi-rist-server PRIVATE ${GSTREAMER_LIBRARIES})
-    target_link_libraries(ndi-rist-server PRIVATE Threads::Threads)
+    target_link_libraries(ndi-rist-server PRIVATE Threads::Threads  iphlpapi wsock32 ws2_32)
 
 ELSE()
 

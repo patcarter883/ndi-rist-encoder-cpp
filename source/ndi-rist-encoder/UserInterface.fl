@@ -8,7 +8,7 @@ class UserInterface {open
   } {
     Fl_Window mainWindow {
       label {NDI RIST Encoder} open
-      xywh {355 340 1330 610} type Double resizable visible
+      xywh {467 302 1330 610} type Double resizable visible
     } {
       Fl_Group inputGroup {
         label Input
@@ -97,7 +97,7 @@ class UserInterface {open
       } {
         Fl_Input ristAddressInput {
           label {RIST Address}
-          callback rist_address_cb
+          callback rist_address_cb selected
           xywh {390 33 218 22}
         }
         Fl_Input rtmpAddressInput {
@@ -112,7 +112,7 @@ class UserInterface {open
         }
         Fl_Check_Button useRpcInput {
           label {Use server remote control.}
-          callback use_rpc_cb selected
+          callback use_rpc_cb
           xywh {390 115 25 25} down_box DOWN_BOX
         }
       }
