@@ -1,30 +1,60 @@
 ﻿// ndi-rist-encoder.cpp : Defines the entry point for the application.
 
+#include <algorithm>
 #include <chrono>
-#include <thread>
 #include <future>
+#include <thread>
 
 #include "main.h"
 
 #include <FL/Fl.H>
-#include <RISTNet.h>
-
-#include "UserInterface.cxx"
-#include "UserInterface.h"
-#include <algorithm>
-
 #include <fmt/core.h>
 #include <gst/app/gstappsink.h>
 #include <gst/gst.h>
 
 #include "Url.h"
+#include "UserInterface.cxx"
+#include "UserInterface.h"
 #include "rpc/client.h"
 using homer6::Url;
 
 #include <string>
 using std::string;
 
+#include "encode.cpp"
+#include "transport.cpp"
 
+using namespace nre;
+namespace nre
+{
+struct App
+{
+  UserInterface* ui = new UserInterface;
+  Fl_Text_Buffer* log_buff = new Fl_Text_Buffer;
+  Fl_Text_Buffer* rist_log_buff = new Fl_Text_Buffer;
+
+  GstDeviceMonitor* monitor;
+
+  std::atomic_bool is_eos = false;
+  std::atomic_bool is_running = false;
+  GMainLoop* loop;
+
+  std::atomic_bool is_playing = false;
+
+  uint16_t current_bitrate;
+  double previous_quality;
+  uint16_t rpc_port = 5999;
+
+  std::future<void> transport_thread_future;
+};
+
+/* Globals */
+Config config;
+App app;
+Encode encoder(&config);
+Transport transporter(&config);
+
+}  // namespace nre
 
 void initUi()
 {
@@ -41,6 +71,32 @@ void initUi()
   app.ui->encoderBitrateInput->value(config.bitrate.c_str());
   app.ui->useRpcInput->value(config.use_rpc_control);
   app.ui->show(NULL, NULL);
+}
+
+
+
+int main(int argc, char** argv)
+{
+  encoder.log_func = logAppend;
+  transporter.log_callback = ristLogAppend;
+  transporter.statistics_callback = gotRistStatistics;
+
+
+  /* init GStreamer */
+  gst_init(&argc, &argv);
+
+  Fl::lock();
+  initUi();
+
+  std::thread findNdiThread(findNdiDevices, app.ui);
+
+  const int result = Fl::run();
+
+  if (findNdiThread.joinable()) {
+    findNdiThread.join();
+  }
+
+  return result;
 }
 
 void logAppend_cb(void* msgPtr)
@@ -60,37 +116,15 @@ void ristLogAppend_cb(void* msgPtr)
   return;
 }
 
-int main(int argc, char** argv)
-{
-
-  /* init GStreamer */
-  gst_init(&argc, &argv);
-
-  Fl::lock();
-  initUi();
-
-  std::thread findNdiThread(findNdiDevices, app.ui);
-
-  const int result = Fl::run();
-
-  if (findNdiThread.joinable()) {
-    findNdiThread.join();
-  }
-
-  return result;
-}
-
-
-
-void logAppend(string logMessage)
+void nre::logAppend(const char* logMessage)
 {
   auto* logMessageCpy = new string;
-  *logMessageCpy = _strdup(logMessage.c_str());
+  *logMessageCpy = _strdup(logMessage);
   Fl::awake(logAppend_cb, logMessageCpy);
   return;
 }
 
-void ristLogAppend(const char* logMessage)
+void nre::ristLogAppend(const char* logMessage)
 {
   auto* logMessageCpy = new string;
   *logMessageCpy = _strdup(logMessage);
@@ -98,13 +132,13 @@ void ristLogAppend(const char* logMessage)
   return;
 }
 
-int ristLog(void* arg, enum rist_log_level, const char* msg)
+int nre::ristLog(void* arg, enum rist_log_level, const char* msg)
 {
   ristLogAppend(msg);
   return 1;
 }
 
-void startStream()
+void nre::startStream()
 {
   if (config.use_rpc_control) {
     try {
@@ -122,8 +156,10 @@ void startStream()
 
   app.is_running = true;
 
-  std::thread thisEncodeThread(runEncodeThread);
-  thisEncodeThread.detach();
+  encoder.run_encode_thread();
+  transporter.setup_rist_sender();
+  app.transport_thread_future = std::async(
+          std::launch::async, rist_loop);
 
   Fl::lock();
   app.ui->btnStartStream->deactivate();
@@ -132,7 +168,7 @@ void startStream()
   Fl::awake();
 }
 
-void stopStream()
+void nre::stopStream()
 {
   app.is_running = false;
   if (g_main_loop_is_running(app.loop)) {
@@ -150,27 +186,26 @@ void stopStream()
 
   if (config.use_rpc_control) {
     try {
-      
-
-      std::future<void> future = std::async(std::launch::async, []()
-        {
+      std::future<void> future = std::async(
+          std::launch::async,
+          []()
+          {
             Url url {fmt::format("rist://{}", config.rist_output_address)};
             rpc::client client(url.getHost(), app.rpc_port);
             client.call("stop");
-        });
+          });
 
       std::future_status status;
 
       using namespace std::chrono_literals;
-      switch (status = future.wait_for(1s); status)
-        {
-            case std::future_status::timeout:
-                logAppend("Server stop timed out.");
-                break;
-            case std::future_status::ready:
-                logAppend("Server pipeline stopped.");
-                break;
-        }
+      switch (status = future.wait_for(1s); status) {
+        case std::future_status::timeout:
+          logAppend("Server stop timed out.");
+          break;
+        case std::future_status::ready:
+          logAppend("Server pipeline stopped.");
+          break;
+      }
 
     } catch (const std::exception& e) {
       logAppend(e.what());
@@ -178,93 +213,12 @@ void stopStream()
   }
 }
 
-gboolean sendBufferToRist(GstBuffer* buffer,
-                          RISTNetSender* sender,
-                          uint16_t streamId)
+void nre::rist_loop()
 {
-   GstMapInfo info;
-
-    gst_buffer_map(buffer, &info, GST_MAP_READ);
-    gsize& buf_size = info.size;
-    guint8*& buf_data = info.data;
-
-    sender->sendData(buf_data, buf_size, 0, streamId);
-
-    return true;
-}
-
-// gboolean sendBufferListToRist(GstBuffer** buffer,
-//                               guint idx,
-//                               gpointer userDataPtr)
-// {
-//   BufferListFuncData* userData = static_cast<BufferListFuncData*>(userDataPtr);
-//   GstMapInfo info;
-
-//   gst_buffer_map(*buffer, &info, GST_MAP_READ);
-//   gsize& buf_size = info.size;
-//   guint8*& buf_data = info.data;
-
-//   userData->sender->sendData(buf_data, buf_size, 0, userData->streamId);
-
-//   return true;
-// }
-
-void handle_gst_message_error(GstMessage* message)
-{
-  GError* err;
-  gchar* debug_info;
-  gst_message_parse_error(message, &err, &debug_info);
-  logAppend("\nReceived error from datasrc_pipeline...\n");
-  logAppend(fmt::format("Error received from element {}: {}\n",
-                        GST_OBJECT_NAME(message->src),
-                        err->message));
-  logAppend(fmt::format("Debugging information: {}\n",
-                        debug_info ? debug_info : "none"));
-  g_clear_error(&err);
-  g_free(debug_info);
-  stopStream();
-}
-
-void handle_gst_message_eos(GstMessage* message)
-{
-  logAppend("\nReceived EOS from pipeline...\n");
-  stopStream();
-}
-
-gboolean handle_gstreamer_bus_message(GstBus* bus,
-                                      GstMessage* message,
-                                      App* app)
-{
-  switch (GST_MESSAGE_TYPE(message)) {
-    case GST_MESSAGE_ERROR:
-      handle_gst_message_error(message);
-      break;
-    case GST_MESSAGE_EOS:
-      handle_gst_message_eos(message);
-      break;
-    default:
-      break;
-  }
-  return TRUE;
-}
-
-void* runRistVideo(RISTNetSender* sender)
-{
-  GstSample* sample;
-  GstBuffer* buffer;
-  GstBufferList* bufferlist;
 
   while (app.is_running) {
-    sample = gst_app_sink_pull_sample(GST_APP_SINK(app.video_sink));
-    buffer = gst_sample_get_buffer(sample);
-    if (buffer)
-    {
-      sendBufferToRist(buffer, sender);
-    }  
-    gst_sample_unref(sample);
+    transporter.send_buffer(encoder.pull_buffer());
   }
-
-  return 0L;
 }
 
 void ristStatistics_cb(void* msgPtr)
@@ -286,7 +240,7 @@ void ristStatistics_cb(void* msgPtr)
   return;
 }
 
-void gotRistStatistics(const rist_stats& statistics)
+void nre::gotRistStatistics(const rist_stats& statistics)
 {
   int bitrateDelta = 0;
   double qualDiffPct;
@@ -312,10 +266,10 @@ void gotRistStatistics(const rist_stats& statistics)
 
   if (bitrateDelta != 0) {
     int newBitrate =
-        std::min(app.current_bitrate += bitrateDelta / 2, (uint16_t)maxBitrate);
-    app.current_bitrate = std::max(newBitrate, 1000);
+        std::max(std::min(app.current_bitrate += bitrateDelta / 2, (uint16_t)maxBitrate), static_cast<const uint16_t>(1000));
+    app.current_bitrate = newBitrate;
+    encoder.set_encode_bitrate(newBitrate)
 
-    g_object_set(G_OBJECT(app.video_encoder), "bitrate", newBitrate, NULL);
   }
 
   app.previous_quality = statistics.stats.sender_peer.quality;
@@ -326,153 +280,15 @@ void gotRistStatistics(const rist_stats& statistics)
   Fl::awake(ristStatistics_cb, p_statistics);
 }
 
-void* runEncodeThread()
+void* nre::previewNDISource()
 {
-  string datasrc_pipeline_str = "";
-
-  datasrc_pipeline_str += fmt::format(
-      "ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
-      config.ndi_input_name);
-
-  datasrc_pipeline_str +=
-      " appsink buffer-list=false wait-on-eos=false sync=true name=video_sink  "
-      "mpegtsmux name=tsmux ! tsparse alignment=7 ! video_sink. ";
-
-  string audioDemux = " demux.audio ! queue ! audioresample ! audioconvert ";
-  string videoDemux = " demux.video ! queue ! videoconvert ";
-
-  string audioEncoder = " avenc_aac ! aacparse ";
-
-  string video_encoder;
-
-  string audioPayloader;
-
-  string videoPayloader;
-
-  if (config.encoder == "amd") {
-    if (config.codec == "h264") {
-      video_encoder = fmt::format(
-          "amfh264enc name=vidEncoder  bitrate={} rate-control=cbr "
-          "usage=low-latency ! video/x-h264,framerate=60/1,profile=high ! "
-          "h264parse ",
-          config.bitrate);
-    } else if (config.codec == "h265") {
-      video_encoder = fmt::format(
-          "amfh265enc name=vidEncoder bitrate={} rate-control=cbr "
-          "usage=low-latency ! video/x-h265,framerate=60/1 ! h265parse ",
-          config.bitrate);
-    } else if (config.codec == "av1") {
-      video_encoder = fmt::format(
-          "amfav1enc name=vidEncoder bitrate={} rate-control=cbr "
-          "usage=low-latency preset=high-quality ! video/x-av1,framerate=60/1 "
-          "! av1parse ",
-          config.bitrate);
-    }
-  } else if (config.encoder == "qsv") {
-    if (config.codec == "h264") {
-      video_encoder = fmt::format(
-          "qsvh264enc name=vidEncoder  bitrate={} rate-control=cbr "
-          "target-usage=1 ! h264parse ",
-          config.bitrate);
-    } else if (config.codec == "h265") {
-      video_encoder = fmt::format(
-          "qsvh265enc name=vidEncoder bitrate={} rate-control=cbr "
-          "target-usage=1 ! h265parse ",
-          config.bitrate);
-    } else if (config.codec == "av1") {
-      video_encoder = fmt::format(
-          "qsvav1enc name=vidEncoder bitrate={} rate-control=cbr "
-          "target-usage=1 ! av1parse ",
-          config.bitrate);
-    }
-  } else if (config.encoder == "nvenc") {
-    if (config.codec == "h264") {
-      video_encoder = fmt::format(
-          "nvh264enc name=vidEncoder bitrate={} rc-mode=cbr-hq "
-          "preset=low-latency-hq ! h264parse ",
-          config.bitrate);
-    } else if (config.codec == "h265") {
-      video_encoder = fmt::format(
-          "nvh265enc name=vidEncoder bitrate={} rc-mode=cbr-hq "
-          "preset=low-latency-hq ! h265parse ",
-          config.bitrate);
-    } else if (config.codec == "av1") {
-      video_encoder = fmt::format(
-          "nvav1enc name=vidEncoder bitrate={} rc-mode=cbr-hq "
-          "preset=low-latency-hq ! av1parse ",
-          config.bitrate);
-    }
-  } else {
-    if (config.codec == "h264") {
-      video_encoder = fmt::format(
-          "x264enc name=vidEncoder speed-preset=fast tune=zerolatency "
-          "bitrate={} ! h264parse ",
-          config.bitrate);
-    } else if (config.codec == "h265") {
-      video_encoder = fmt::format(
-          "x265enc name=vidEncoder bitrate={} "
-          "speed-preset=fast tune=zerolatency ! h265parse ",
-          config.bitrate);
-    } else if (config.codec == "av1") {
-      video_encoder = fmt::format(
-          "rav1enc name=vidEncoder bitrate={} speed-preset=8 tile-cols=2 "
-          "tile-rows=2 ! av1parse ",
-          config.bitrate);
-    }
-  }
-
-  audioPayloader = "queue ! tsmux. ";
-  videoPayloader = "queue ! tsmux. ";
-
-  datasrc_pipeline_str += fmt::format("{} ! {} ! {}  {} ! {} ! {}",
-                                      audioDemux,
-                                      audioEncoder,
-                                      audioPayloader,
-                                      videoDemux,
-                                      video_encoder,
-                                      videoPayloader);
-
-  logAppend(datasrc_pipeline_str.c_str());
-
-  parsePipeline(datasrc_pipeline_str);
-
-  app.video_encoder =
-      gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "vidEncoder");
-
-  // /* set up appsink */
-  app.video_sink =
-      gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "video_sink");
-
-  std::future<void> ristFuture = std::async(std::launch::async, []()
-        {
-            RISTNetSender ristSender;
-            setupRistSender(&ristSender);
-            runRistVideo(&ristSender);
-            ristSender.destroySender();
-        });
-
-
-  std::future<void> gstreamerFuture = std::async(std::launch::async, []()
-        {
-            playPipeline();
-        });
-
-  ristFuture.wait();
-  gstreamerFuture.wait();
-
-  logAppend("Pipeline stopped.\n");
-  return 0L;
-}
-
-void* previewNDISource()
-{
-  string pipelineString = fmt::format(
-      "ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux   "
-      "demux.video ! queue ! videoconvert ! autovideosink  demux.audio ! queue "
-      "! audioconvert ! autoaudiosink",
-      config.ndi_input_name);
-  parsePipeline(pipelineString);
-  playPipeline();
+  // string pipelineString = fmt::format(
+  //     "ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux   "
+  //     "demux.video ! queue ! videoconvert ! autovideosink  demux.audio ! queue "
+  //     "! audioconvert ! autoaudiosink",
+  //     config.ndi_input_name);
+  // parsePipeline(pipelineString);
+  // playPipeline();
 
   return 0L;
 }
@@ -484,8 +300,8 @@ void ndi_source_select_cb(Fl_Widget* o, void* v)
 
 void preview_cb(Fl_Button* o, void* v)
 {
-   std::thread thisPreviewThread(previewNDISource);
-   thisPreviewThread.detach();
+  std::thread thisPreviewThread(previewNDISource);
+  thisPreviewThread.detach();
 }
 
 void startStream_cb(Fl_Button* o, void* v)
@@ -577,7 +393,7 @@ void use_rpc_cb(Fl_Check_Button* o, void* v)
   config.use_rpc_control = o->value();
 }
 
-void* findNdiDevices(void* p)
+void* nre::findNdiDevices(void* p)
 {
   UserInterface* ui = (UserInterface*)p;
   GstBus* bus;
@@ -619,7 +435,7 @@ void* findNdiDevices(void* p)
   return 0L;
 }
 
-void addNdiDevice(gpointer devicePtr, gpointer p)
+void nre::addNdiDevice(gpointer devicePtr, gpointer p)
 {
   GstDevice* device = static_cast<GstDevice*>(devicePtr);
 
@@ -628,79 +444,4 @@ void addNdiDevice(gpointer devicePtr, gpointer p)
   app.ui->ndiSourceSelect->add(
       newDeviceDisplayName, 0, ndi_source_select_cb, newDeviceDisplayName, 0);
   gst_object_unref(device);
-}
-
-void parsePipeline(string pipelineString)
-{
-  app.datasrc_pipeline = NULL;
-  GError* error = NULL;
-  GstBus* datasrc_bus;
-
-  app.datasrc_pipeline = gst_parse_launch(pipelineString.c_str(), &error);
-  if (error) {
-    logAppend(fmt::format("Parse Error: {}", error->message));
-    g_clear_error(&error);
-  }
-  if (app.datasrc_pipeline == NULL) {
-    logAppend("*** Bad datasrc_pipeline ***\n");
-  }
-
-  datasrc_bus = gst_element_get_bus(app.datasrc_pipeline);
-
-  /* add watch for messages */
-  gst_bus_add_watch(
-      datasrc_bus, (GstBusFunc)handle_gstreamer_bus_message, &app);
-  gst_object_unref(datasrc_bus);
-}
-
-void playPipeline()
-{
-  app.is_eos = FALSE;
-  app.loop = g_main_loop_new(NULL, FALSE);
-  app.is_playing = true;
-  logAppend("Playing pipeline.\n");
-  gst_element_set_state(app.datasrc_pipeline, GST_STATE_PLAYING);
-  g_main_loop_run(app.loop);
-  app.is_playing = false;
-  gst_element_set_state(app.datasrc_pipeline, GST_STATE_NULL);
-  logAppend("Stopping pipeline.\n");
-  gst_object_unref(GST_OBJECT(app.datasrc_pipeline));
-  g_main_loop_unref(app.loop);
-}
-
-void setupRistSender(RISTNetSender *thisRistSender) {
- 
-  app.current_bitrate = std::stoi(config.bitrate);
-  RISTNetSender::RISTNetSenderSettings mySendConfiguration;
-
-  // Generate a vector of RIST URL's,  ip(name), ports, RIST URL output,
-  // listen(true) or send mode (false)
-  string lURL = fmt::format(
-      "rist://"
-      "{}?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&"
-      "reorder-buffer={}",
-      config.rist_output_address,
-      config.rist_output_bandwidth,
-      config.rist_output_buffer_min,
-      config.rist_output_buffer_max,
-      config.rist_output_rtt_min,
-      config.rist_output_rtt_max,
-      config.rist_output_reorder_buffer);
-  std::vector<std::tuple<string, int>> interfaceListSender;
-
-  interfaceListSender.push_back(std::tuple<string, int>(lURL, 0));
-
-  thisRistSender->statisticsCallback = gotRistStatistics;
-
-  if (config.rist_output_bandwidth != "") {
-    int recovery_maxbitrate = std::stoi(config.rist_output_bandwidth);
-    if (recovery_maxbitrate > 0) {
-      mySendConfiguration.mPeerConfig.recovery_maxbitrate = recovery_maxbitrate;
-    }
-  }
-
-  mySendConfiguration.mLogLevel = RIST_LOG_INFO;
-  mySendConfiguration.mProfile = RIST_PROFILE_MAIN;
-  mySendConfiguration.mLogSetting.get()->log_cb = *ristLog;
-  thisRistSender->initSender(interfaceListSender, mySendConfiguration);
 }

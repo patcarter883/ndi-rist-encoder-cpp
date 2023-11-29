@@ -74,7 +74,7 @@ endif()
 
 # ---- Declare executable ----
 
-add_executable(ndi-rist-encoder WIN32 source/ndi-rist-encoder/main.cpp source/ndi-rist-encoder/main.h source/ndi-rist-encoder/Url.h source/ndi-rist-encoder/Url.cc)
+add_executable(ndi-rist-encoder WIN32 source/ndi-rist-encoder/main.cpp source/ndi-rist-encoder/Url.cc source/ndi-rist-encoder/encode.cpp source/ndi-rist-encoder/transport.cpp)
 
 target_compile_features(ndi-rist-encoder PRIVATE cxx_std_20)
 
