@@ -21,8 +21,8 @@ using homer6::Url;
 #include <string>
 using std::string;
 
-#include "encode.cpp"
-#include "transport.cpp"
+#include "encode.h"
+#include "transport.h"
 
 using namespace nre;
 namespace nre
@@ -78,7 +78,7 @@ void initUi()
 int main(int argc, char** argv)
 {
   encoder.log_func = logAppend;
-  transporter.log_callback = ristLogAppend;
+  transporter.log_callback = &ristLog;
   transporter.statistics_callback = gotRistStatistics;
 
 
@@ -116,18 +116,18 @@ void ristLogAppend_cb(void* msgPtr)
   return;
 }
 
-void nre::logAppend(const char* logMessage)
+void nre::logAppend(string logMessage)
 {
   auto* logMessageCpy = new string;
-  *logMessageCpy = _strdup(logMessage);
+  *logMessageCpy = _strdup(logMessage.c_str());
   Fl::awake(logAppend_cb, logMessageCpy);
   return;
 }
 
-void nre::ristLogAppend(const char* logMessage)
+void nre::ristLogAppend(string logMessage)
 {
   auto* logMessageCpy = new string;
-  *logMessageCpy = _strdup(logMessage);
+  *logMessageCpy = _strdup(logMessage.c_str());
   Fl::awake(ristLogAppend_cb, logMessageCpy);
   return;
 }
@@ -171,10 +171,8 @@ void nre::startStream()
 void nre::stopStream()
 {
   app.is_running = false;
-  if (g_main_loop_is_running(app.loop)) {
-    g_main_loop_quit(app.loop);
-  }
-
+  encoder.stop_encode_thread();
+  app.transport_thread_future.wait();
   Fl::lock();
   app.ui->btnStopStream->deactivate();
   Fl::unlock();
@@ -215,9 +213,9 @@ void nre::stopStream()
 
 void nre::rist_loop()
 {
-
   while (app.is_running) {
     transporter.send_buffer(encoder.pull_buffer());
+    std::this_thread::sleep_for(std::chrono::milliseconds(8)); // wait 1/4 of 60fps frametime
   }
 }
 
@@ -268,8 +266,7 @@ void nre::gotRistStatistics(const rist_stats& statistics)
     int newBitrate =
         std::max(std::min(app.current_bitrate += bitrateDelta / 2, (uint16_t)maxBitrate), static_cast<const uint16_t>(1000));
     app.current_bitrate = newBitrate;
-    encoder.set_encode_bitrate(newBitrate)
-
+    encoder.set_encode_bitrate(newBitrate);
   }
 
   app.previous_quality = statistics.stats.sender_peer.quality;
@@ -326,19 +323,14 @@ void refreshSources_cb(Fl_Button* o, void* v)
   app.ui->btnRefreshSources->activate();
 }
 
-void select_codec_cb(Fl_Menu_* o, void* v)
+void select_codec_cb(Fl_Menu_* o, Codec v)
 {
-  config.codec = (char*)v;
+  config.codec = v;
 }
 
-void select_encoder_cb(Fl_Menu_* o, void* v)
+void select_encoder_cb(Fl_Menu_* o, Encoder v)
 {
-  config.encoder = (char*)v;
-}
-
-void select_transport_cb(Fl_Menu_* o, void* v)
-{
-  config.transport = (char*)v;
+  config.encoder = v;
 }
 
 void rist_address_cb(Fl_Input* o, void* v)

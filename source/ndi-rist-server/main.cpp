@@ -6,7 +6,7 @@ App app;
 
 //Return a connection object. (Return nullptr if you don't want to connect to that client)
 std::shared_ptr<RISTNetReceiver::NetworkConnection> validateConnection(const std::string &ipAddress, uint16_t port) {
-    std::cout << "Connecting IP: " << ipAddress << ":" << unsigned(port) << std::endl;
+    std::cout << "Connecting IP: " << ipAddress << ":" << unsigned(port) << "\n";
 
     //Do we want to allow this connection?
     //Do we have enough resources to accept this connection...
@@ -23,7 +23,7 @@ std::shared_ptr<RISTNetReceiver::NetworkConnection> validateConnection(const std
 }
 
 void clientDisconnect(const std::shared_ptr<RISTNetReceiver::NetworkConnection>& connection, const rist_peer& peer) {
-    std::cout << "Client disconnected from receiver" << endl;
+    std::cout << "Client disconnected from receiver\n";
 }
 
 int
@@ -40,7 +40,7 @@ dataFromSender(const uint8_t *buf, size_t len, std::shared_ptr<RISTNetReceiver::
 
   if (ret != GST_FLOW_OK) {
       /* some error, stop sending data */
-      cerr << "Appsrc buffer push error" << endl;
+      cerr << "Appsrc buffer push error\n";
       g_signal_emit_by_name (app.videosrc, "end-of-stream", &ret);
       return 1;
   }
@@ -55,7 +55,7 @@ int ristLog(void *arg, enum rist_log_level logLevel, const char *msg)
 }
 
 void stop() {
-  std::cout << "Stopping." << std::endl;
+  std::cout << "Stopping." << "\n";
 	app.isPlaying = false;
   if (g_main_loop_is_running(app.loop))
 	{
@@ -173,7 +173,7 @@ void run_gstreamer_thread() {
   if (!ristReceiver.initReceiver(interfaceListReceiver,
                                       myReceiveConfiguration))
   {
-    cerr << "Couldn't start RIST Receiver." << endl;
+    cerr << "Couldn't start RIST Receiver.\n";
     return;
   }
 
@@ -203,7 +203,7 @@ void run_gstreamer_thread() {
 
 void start(std::string rtmpTarget)
 {
-  std::cout << "Start Requested for destination " <<  rtmpTarget << std::endl;
+  std::cout << "Start Requested for destination " <<  rtmpTarget << "\n";
 	app.is_playing = true;
 	config.rtmp_output_address = rtmpTarget;
 	app.gstreamer_thread = std::make_shared<std::thread>(std::thread(app.gstreamer_thread));
@@ -213,7 +213,7 @@ void runRpc() {
  // Create a server that listens on port 8080, or whatever the user selected
   rpc::server srv("0.0.0.0", 5999);
 
-  std::cout << "RIST Restreamer Started - Listening on port " << srv.port() << std::endl;
+  std::cout << "RIST Restreamer Started - Listening on port " << srv.port() << "\n";
 
   srv.bind("start", &start);
   srv.bind("stop", &stop);

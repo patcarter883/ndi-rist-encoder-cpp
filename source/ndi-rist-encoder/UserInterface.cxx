@@ -3,9 +3,9 @@
 #include "UserInterface.h"
 
 Fl_Menu_Item UserInterface::menu_codecSelect[] = {
- {"H264", 0,  (Fl_Callback*)select_codec_cb, (void*)("h264"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"H265", 0,  (Fl_Callback*)select_codec_cb, (void*)("h265"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"AV1", 0,  (Fl_Callback*)select_codec_cb, (void*)("av1"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"H264", 0,  (Fl_Callback*)select_codec_cb, (void*)(Codec::h264), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"H265", 0,  (Fl_Callback*)select_codec_cb, (void*)(Codec::h265), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"AV1", 0,  (Fl_Callback*)select_codec_cb, (void*)(Codec::av1), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
  {0,0,0,0,0,0,0,0,0}
 };
 Fl_Menu_Item* UserInterface::h264CodecChoice = UserInterface::menu_codecSelect + 0;

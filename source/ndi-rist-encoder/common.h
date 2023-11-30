@@ -3,11 +3,23 @@
 #include <string>
 #include <gst/gst.h>
 
+enum class Codec {
+  h264,
+  h265,
+  av1
+};
+
+enum class Encoder {
+  amd,
+  qsv,
+  nvenc,
+  software
+};
 struct Config
 {
   std::string ndi_input_name;
-  std::string codec = "h264";
-  std::string encoder = "software";
+  Codec codec = Codec::h264;
+  Encoder encoder = Encoder::software;
   std::string transport = "m2ts";
   std::string bitrate = "4300";
   std::string rist_output_address = "127.0.0.1:5000";
@@ -24,6 +36,6 @@ struct Config
 
 struct BufferDataStruct
     {
-        gsize buf_size;
+        gsize buf_size {0};
         uint8_t* buf_data;
     };

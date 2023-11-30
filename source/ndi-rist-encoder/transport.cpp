@@ -1,29 +1,6 @@
-#include "common.h"
-#include <fmt/core.h>
-#include <gst/gst.h>
-#include <gst/app/gstappsink.h>
-#include <RISTNet.h>
+#include "transport.h"
+
 using std::string;
-
-class Transport {
-
-    public:
-        Config* config;
-        RISTNetSender ristSender;
-        std::function<void(const rist_stats& statistics)> statistics_callback = nullptr;
-        std::function<int(void* arg, enum rist_log_level, const char* msg)> log_callback = nullptr;
-        void setup_rist_sender();
-        void send_buffer(BufferDataStruct buffer_data);
-        Transport(Config* config) {
-            this->config = config;
-        }
-        ~Transport() {
-            this->ristSender.destroySender();
-        }
-
-    private:
-        
-};
 
 void Transport::setup_rist_sender() {
  
@@ -47,13 +24,6 @@ void Transport::setup_rist_sender() {
   interfaceListSender.push_back(std::tuple<string, int>(lURL, 0));
 
   this->ristSender.statisticsCallback = this->statistics_callback;
-
-  if (this->config->rist_output_bandwidth != "") {
-    int recovery_maxbitrate = std::stoi(config->rist_output_bandwidth);
-    if (recovery_maxbitrate > 0) {
-      mySendConfiguration.mPeerconfig->recovery_maxbitrate = recovery_maxbitrate;
-    }
-  }
 
   mySendConfiguration.mLogLevel = RIST_LOG_INFO;
   mySendConfiguration.mProfile = RIST_PROFILE_MAIN;

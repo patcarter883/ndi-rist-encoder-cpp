@@ -4,11 +4,13 @@ header_name {.h}
 code_name {.cxx}
 class UserInterface {open
 } {
+  decl {\#include "common.h"} {public local
+  }
   Function {UserInterface()} {open
   } {
     Fl_Window mainWindow {
       label {NDI RIST Encoder} open
-      xywh {467 302 1330 610} type Double resizable visible
+      xywh {442 335 1330 610} type Double resizable visible
     } {
       Fl_Group inputGroup {
         label Input
@@ -30,29 +32,29 @@ class UserInterface {open
         }
       }
       Fl_Group encodeGroup {
-        label Encode
+        label Encode open
         xywh {26 143 249 97}
       } {
         Fl_Choice codecSelect {
-          label Codec
+          label Codec open
           xywh {140 148 92 22} down_box BORDER_BOX
         } {
           MenuItem h264CodecChoice {
             label H264
-            user_data {"h264"}
+            user_data {Codec::h264}
             callback select_codec_cb
             xywh {0 0 100 20}
           }
           MenuItem h265CodecChoice {
             label H265
-            user_data {"h265"}
+            user_data {Codec::h265}
             callback select_codec_cb
             xywh {0 0 100 20}
           }
           MenuItem av1CodecChoice {
             label AV1
-            user_data {"av1"}
-            callback select_codec_cb
+            user_data {Codec::av1}
+            callback select_codec_cb selected
             xywh {0 0 100 20}
           }
         }
@@ -97,7 +99,7 @@ class UserInterface {open
       } {
         Fl_Input ristAddressInput {
           label {RIST Address}
-          callback rist_address_cb selected
+          callback rist_address_cb
           xywh {390 33 218 22}
         }
         Fl_Input rtmpAddressInput {
@@ -200,8 +202,7 @@ class UserInterface {open
       }
     }
   }
-  Function {show(int argc, char **argv)} {open
-  } {
+  Function {show(int argc, char **argv)} {} {
     code {mainWindow->show(argc, argv);} {}
   }
 }
