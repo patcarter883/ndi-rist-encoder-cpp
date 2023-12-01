@@ -1,5 +1,8 @@
 #include "main.h"
-
+#include <fmt/core.h>
+using std::string; using std::vector;
+using std::cerr;
+using std::cout;
 /* Globals */
 Config config;
 App app;
@@ -50,20 +53,22 @@ dataFromSender(const uint8_t *buf, size_t len, std::shared_ptr<RISTNetReceiver::
 
 int ristLog(void *arg, enum rist_log_level logLevel, const char *msg)
 {
-    cout << msg << endl;
+    cout << msg << "\n";
 	return 1;
 }
 
 void stop() {
   std::cout << "Stopping." << "\n";
-	app.isPlaying = false;
+	app.is_playing = false;
   if (g_main_loop_is_running(app.loop))
 	{
 		g_main_loop_quit(app.loop);
 	}
-  if (app.gstreamer_thread->joinable()) {
-    app.gstreamer_thread->join();
-  }
+  app.gstreamer_thread_future.wait();
+}
+
+void logAppend(string message) {
+  std::cout << message << "\n";
 }
 
 void handle_gst_message_error(GstMessage* message)
@@ -84,7 +89,7 @@ void handle_gst_message_error(GstMessage* message)
 
 void handle_gst_message_eos(GstMessage* message)
 {
-  logAppend("\nReceived EOS from pipeline...\n");
+  logAppend("Received EOS from pipeline...");
   stop();
 }
 
@@ -128,18 +133,15 @@ void parsePipeline(string pipelineString)
   gst_object_unref(datasrc_bus);
 }
 
-void playPipeline(std::shared_ptr<std::thread> pipelineThread)
+void playPipeline()
 {
   app.is_eos = FALSE;
   app.loop = g_main_loop_new(NULL, FALSE);
   app.is_playing = true;
-  logAppend("Setting pipeline to PLAYING.\n");
+  logAppend("Setting pipeline to PLAYING.");
   gst_element_set_state(app.datasrc_pipeline, GST_STATE_PLAYING);
-  pipelineThread = std::make_shared<std::thread>(g_main_loop_run, app.loop);
-  if (pipelineThread->joinable())
-  {
-    pipelineThread->join();
-  }
+  auto future = std::async(std::launch::async, g_main_loop_run, app.loop);
+  future.wait();
   app.is_playing = false;
   gst_element_set_state(app.datasrc_pipeline, GST_STATE_NULL);
 
@@ -194,7 +196,7 @@ void run_gstreamer_thread() {
      NULL);
    gst_app_src_set_caps(GST_APP_SRC(app.videosrc), caps);
 
-  playPipeline(app.gstreamer_thread);
+  playPipeline();
 
   ristReceiver.destroyReceiver();
 
@@ -235,11 +237,4 @@ int main(int argc, char **argv)
    }
   
   runRpc();
-
-  if (app.gstreamer_thread->joinable()) {
-    app.gstreamer_thread->join();
-  }
-
- 
-  return 0;
 }
