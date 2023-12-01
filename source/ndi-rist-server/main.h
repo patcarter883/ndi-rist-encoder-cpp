@@ -3,15 +3,11 @@
 #include <iostream>
 
 #include "gst/gstmessage.h"
-using std::cerr;
-using std::cout;
-using std::endl;
 #include <thread>
 #include <future>
 #include <vector>
 #include <string>
 #include <atomic>
-using std::string; using std::vector;
 
 #include <gst/allocators/gstdmabuf.h>
 #include <gst/app/gstappsrc.h>
@@ -35,7 +31,7 @@ struct App
   std::atomic_bool is_playing = false;
   gboolean debug = false;
 
-  std::shared_ptr<std::thread> gstreamer_thread;
+  std::future<void> gstreamer_thread_future;
 };
 
 struct Config

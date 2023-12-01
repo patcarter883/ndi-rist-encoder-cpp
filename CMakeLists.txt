@@ -62,7 +62,7 @@ ELSE()
 
 ENDIF()
 
-find_package(NDI REQUIRED)
+find_package(NDI)
 find_package(fmt CONFIG REQUIRED)
 find_package(FLTK CONFIG REQUIRED)
 add_subdirectory(extern/rpclib)
@@ -130,7 +130,7 @@ ELSE()
     PkgConfig::gstreamer-video)
 ENDIF()
 
-target_link_libraries(ndi-rist-server PRIVATE rpc ristnet)
+target_link_libraries(ndi-rist-server PRIVATE rpc fmt::fmt ristnet)
 
 add_dependencies(ndi-rist-server rpc ristnet)
 # ---- Install rules ----
