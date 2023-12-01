@@ -26,7 +26,7 @@ void pipeline_build_sink()
       + config.rtmp_output_address + "' name=rtmpSink multiqueue name=outq ";
 }
 
-void pipeline_build_src()
+void pipeline_build_source()
 {
   app.pipeline_str +=
       " appsrc emit-signals=false block=true is-live=true name=videosrc ! "
@@ -272,6 +272,11 @@ void rpc_call_start(RpcData data)
   log("Start Requested for destination " + data.rtmp_address);
   start_gstreamer(data);
   start_rist(data);
+}
+
+void rpc_call_stop()
+{
+  log("Stopping.");
 }
 
 void run_rpc_server()
