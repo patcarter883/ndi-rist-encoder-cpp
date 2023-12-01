@@ -1,4 +1,4 @@
-﻿// ndi-rist-encoder.cpp : Defines the entry point for the application.
+﻿// ndi-rist-encoder->cpp : Defines the entry point for the application.
 
 #include <algorithm>
 #include <chrono>
@@ -51,8 +51,8 @@ struct App
 /* Globals */
 Config config;
 App app;
-Encode encoder(&config);
-Transport transporter(&config);
+Encode* encoder = nullptr;
+Transport* transporter = nullptr;
 
 }  // namespace nre
 
@@ -77,10 +77,6 @@ void initUi()
 
 int main(int argc, char** argv)
 {
-  encoder.log_func = logAppend;
-  transporter.log_callback = &ristLog;
-  transporter.statistics_callback = gotRistStatistics;
-
 
   /* init GStreamer */
   gst_init(&argc, &argv);
@@ -140,6 +136,12 @@ int nre::ristLog(void* arg, enum rist_log_level, const char* msg)
 
 void nre::startStream()
 {
+ encoder = new Encode(&config);
+ transporter = new Transport(&config);
+ encoder->log_func = logAppend;
+  transporter->log_callback = &ristLog;
+  transporter->statistics_callback = gotRistStatistics;
+  app.current_bitrate = std::stoi(config.bitrate);
   if (config.use_rpc_control) {
     try {
       Url url {fmt::format("rist://{}", config.rist_output_address)};
@@ -154,10 +156,8 @@ void nre::startStream()
     }
   }
 
-  app.is_running = true;
-
-  encoder.run_encode_thread();
-  transporter.setup_rist_sender();
+  encoder->run_encode_thread();
+  transporter->setup_rist_sender();
   app.transport_thread_future = std::async(
           std::launch::async, rist_loop);
 
@@ -171,7 +171,7 @@ void nre::startStream()
 void nre::stopStream()
 {
   app.is_running = false;
-  encoder.stop_encode_thread();
+  encoder->stop_encode_thread();
   app.transport_thread_future.wait();
   Fl::lock();
   app.ui->btnStopStream->deactivate();
@@ -181,6 +181,8 @@ void nre::stopStream()
   app.ui->btnStartStream->activate();
   Fl::unlock();
   Fl::awake();
+  delete encoder;
+  delete transporter;
 
   if (config.use_rpc_control) {
     try {
@@ -213,10 +215,12 @@ void nre::stopStream()
 
 void nre::rist_loop()
 {
+  app.is_running = true;
   while (app.is_running) {
-    transporter.send_buffer(encoder.pull_buffer());
-    std::this_thread::sleep_for(std::chrono::milliseconds(8)); // wait 1/4 of 60fps frametime
+    transporter->send_buffer(encoder->pull_buffer());
+    // std::this_thread::sleep_for(std::chrono::milliseconds(8)); // wait 1/4 of 60fps frametime
   }
+  app.is_running = false;
 }
 
 void ristStatistics_cb(void* msgPtr)
@@ -266,7 +270,7 @@ void nre::gotRistStatistics(const rist_stats& statistics)
     int newBitrate =
         std::max(std::min(app.current_bitrate += bitrateDelta / 2, (uint16_t)maxBitrate), static_cast<const uint16_t>(1000));
     app.current_bitrate = newBitrate;
-    encoder.set_encode_bitrate(newBitrate);
+    encoder->set_encode_bitrate(newBitrate);
   }
 
   app.previous_quality = statistics.stats.sender_peer.quality;

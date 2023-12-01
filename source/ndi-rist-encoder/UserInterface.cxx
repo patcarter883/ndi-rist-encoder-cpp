@@ -13,10 +13,10 @@ Fl_Menu_Item* UserInterface::h265CodecChoice = UserInterface::menu_codecSelect +
 Fl_Menu_Item* UserInterface::av1CodecChoice = UserInterface::menu_codecSelect + 2;
 
 Fl_Menu_Item UserInterface::menu_encoderSelect[] = {
- {"Software", 0,  (Fl_Callback*)select_encoder_cb, (void*)("software"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"AMD", 0,  (Fl_Callback*)select_encoder_cb, (void*)("amd"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"Intel QSV", 0,  (Fl_Callback*)select_encoder_cb, (void*)("qsv"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"Nvidia NVENC", 0,  (Fl_Callback*)select_encoder_cb, (void*)("nvenc"), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"Software", 0,  (Fl_Callback*)select_encoder_cb, (void*)(Encoder::software), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"AMD", 0,  (Fl_Callback*)select_encoder_cb, (void*)(Encoder::amd), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"Intel QSV", 0,  (Fl_Callback*)select_encoder_cb, (void*)(Encoder::qsv), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"Nvidia NVENC", 0,  (Fl_Callback*)select_encoder_cb, (void*)(Encoder::nvenc), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
  {0,0,0,0,0,0,0,0,0}
 };
 Fl_Menu_Item* UserInterface::softwareEncoderChoice = UserInterface::menu_encoderSelect + 0;

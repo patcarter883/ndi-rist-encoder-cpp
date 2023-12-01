@@ -13,11 +13,11 @@ void Encode::pipeline_build_sink() {
 }
 
 void Encode::pipeline_build_video_demux() {
-    this->pipeline_str += " demux.video ! queue ! videoconvert ";
+    this->pipeline_str += " demux.video ! queue ! videoconvert !";
 }
 
 void Encode::pipeline_build_audio_demux() {
-    this->pipeline_str += " demux.audio ! queue ! audioresample ! audioconvert ";
+    this->pipeline_str += " demux.audio ! queue ! audioresample ! audioconvert !";
 }
 
 void Encode::pipeline_build_audio_encoder() {
@@ -203,11 +203,11 @@ void Encode::pipeline_build_software_av1_encoder() {
 
 
 void Encode::pipeline_build_audio_payloader() {
-    this->pipeline_str += "queue ! tsmux. ";
+    this->pipeline_str += "! queue ! tsmux. ";
 }
 
 void Encode::pipeline_build_video_payloader() {
-    this->pipeline_str += "queue ! tsmux. ";
+    this->pipeline_str += "! queue ! tsmux. ";
 }
 
 void Encode::build_pipeline() {
@@ -225,6 +225,8 @@ void Encode::parse_pipeline() {
     this->datasrc_pipeline = NULL;
     GError* error = NULL;
 
+    this->log_func(this->pipeline_str);
+
     this->datasrc_pipeline = gst_parse_launch(this->pipeline_str.c_str(), &error);
     if (error) {
         this->log_func(fmt::format("Parse Error: {}", error->message));
@@ -236,22 +238,24 @@ void Encode::parse_pipeline() {
 
     this->video_encoder =
       gst_bin_get_by_name(GST_BIN(this->datasrc_pipeline), "vidEncoder");
+    this->video_sink =
+      gst_bin_get_by_name(GST_BIN(this->datasrc_pipeline), "video_sink");
 
-    GstBus* datasrc_bus = gst_element_get_bus(this->datasrc_pipeline);
-    /* add watch for messages */
-    // gst_bus_add_watch(datasrc_bus, (GstBusFunc)this->&handle_gstreamer_bus_message, NULL);
-    gst_object_unref(datasrc_bus);
+    this->bus = gst_element_get_bus(this->datasrc_pipeline);
 } 
 
 void Encode::play_pipeline() {
-    g_main_loop_run(this->loop);
+    do {
+    GstMessage *msg = gst_bus_timed_pop (this->bus, -1);
+    this->handle_gstreamer_message(msg);
+    gst_message_unref(msg);
+  } while (this->is_playing);
 }
 
 void Encode::run_encode_thread() {
     this->build_pipeline();
     this->parse_pipeline();
     this->is_eos = FALSE;
-    this->loop = g_main_loop_new(NULL, FALSE);
     this->is_playing = true;
     this->log_func("Playing pipeline.\n");
     gst_element_set_state(this->datasrc_pipeline, GST_STATE_PLAYING);
@@ -261,6 +265,8 @@ void Encode::run_encode_thread() {
 void Encode::stop_encode_thread() {
     this->is_playing = false;
     gst_element_set_state(this->datasrc_pipeline, GST_STATE_NULL);
+    gst_object_unref(GST_OBJECT(this->datasrc_pipeline));
+    gst_object_unref(this->bus);
     this->log_func("Stopping pipeline.\n");
     
     std::future_status status;
@@ -288,13 +294,15 @@ void Encode::handle_gst_message_error(GstMessage* message) {
                             debug_info ? debug_info : "none"));
     g_clear_error(&err);
     g_free(debug_info);
+    this->is_playing = false;
 }
 
 void Encode::handle_gst_message_eos(GstMessage* message) {
     this->log_func("\nReceived EOS from pipeline...\n");
+    this->is_playing = false;
 }
 
-gboolean Encode::handle_gstreamer_bus_message(GstBus* bus, GstMessage* message, gpointer user_data)
+void Encode::handle_gstreamer_message(GstMessage* message)
 {
   switch (GST_MESSAGE_TYPE(message)) {
     case GST_MESSAGE_ERROR:
@@ -306,7 +314,6 @@ gboolean Encode::handle_gstreamer_bus_message(GstBus* bus, GstMessage* message, 
     default:
       break;
   }
-  return TRUE;
 }
 
 BufferDataStruct Encode::pull_buffer(){
