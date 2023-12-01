@@ -65,6 +65,13 @@ ENDIF()
 find_package(NDI)
 find_package(fmt CONFIG REQUIRED)
 find_package(FLTK CONFIG REQUIRED)
+set(Boost_USE_STATIC_LIBS       OFF)  # only find static libs
+set(Boost_USE_DEBUG_LIBS        OFF)  # ignore debug libs and
+set(Boost_USE_RELEASE_LIBS       ON)  # only find release libs
+set(Boost_USE_MULTITHREADED      ON)
+set(Boost_USE_STATIC_RUNTIME     ON)  # link Boost Static libraries
+find_package(Boost REQUIRED)
+message(STATUS "Boost version: ${Boost_VERSION}")
 add_subdirectory(extern/rpclib)
 add_subdirectory(extern/rist-cpp)
 
@@ -82,7 +89,7 @@ target_include_directories(ndi-rist-encoder PUBLIC ${FLTK_INCLUDE_DIRS})
 target_include_directories(ndi-rist-encoder PUBLIC ${GSTREAMER_INCLUDE_DIRS})
 target_include_directories(ndi-rist-encoder PRIVATE ${NDI_INCLUDE_DIRS})
 
-target_link_libraries(ndi-rist-encoder PRIVATE fmt::fmt rpc)
+target_link_libraries(ndi-rist-encoder PRIVATE fmt::fmt rpc Boost::boost)
 target_link_libraries(ndi-rist-encoder PRIVATE fltk fltk_gl fltk_forms fltk_images) 
 target_link_libraries(ndi-rist-encoder PRIVATE ${NDI_LIBRARIES}) 
 
@@ -130,7 +137,7 @@ ELSE()
     PkgConfig::gstreamer-video)
 ENDIF()
 
-target_link_libraries(ndi-rist-server PRIVATE rpc fmt::fmt ristnet)
+target_link_libraries(ndi-rist-server PRIVATE rpc fmt::fmt ristnet Boost::boost)
 
 add_dependencies(ndi-rist-server rpc ristnet)
 # ---- Install rules ----

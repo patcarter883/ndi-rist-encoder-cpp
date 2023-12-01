@@ -6,7 +6,8 @@
       "name": "fmt",
       "version>=": "10.1.0"
     },
-    "fltk"
+    "fltk",
+    "boost-circular-buffer"
   ],
   "default-features": [],
   "features": {

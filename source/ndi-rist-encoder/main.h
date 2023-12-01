@@ -25,4 +25,18 @@ void ristLogAppend(std::string logMessage);
 int ristLog(void* arg, enum rist_log_level, const char* msg);
 void rist_loop();
 
+struct RpcData
+{
+  std::string bitrate;
+  std::string rist_output_address;
+  std::string rist_output_buffer_min;
+  std::string rist_output_buffer_max;
+  std::string rist_output_rtt_min;
+  std::string rist_output_rtt_max;
+  std::string rist_output_reorder_buffer;
+  std::string rist_output_bandwidth;
+  std::string rtmp_address;
+  std::string rtmp_key;
+};
+
 }
