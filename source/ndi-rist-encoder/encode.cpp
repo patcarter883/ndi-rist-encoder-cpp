@@ -3,13 +3,13 @@
 using std::string;
 
 void Encode::pipeline_build_source() {
-    this->pipeline_str = fmt::format("ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux ",
+    this->pipeline_str = fmt::format("ndisrc do-timestamp=true ndi-name=\"{}\" ! ndisrcdemux name=demux ",
       this->config->ndi_input_name);
 }
 
 void Encode::pipeline_build_sink() {
-    this->pipeline_str += " appsink buffer-list=false wait-on-eos=false sync=true name=video_sink  "
-      "mpegtsmux name=tsmux ! tsparse alignment=7 ! video_sink. ";
+    this->pipeline_str += " appsink buffer-list=false wait-on-eos=false sync=false name=video_sink  "
+      "mpegtsmux name=tsmux ! rtpmp2tpay ! video_sink. ";
 }
 
 void Encode::pipeline_build_video_demux() {
