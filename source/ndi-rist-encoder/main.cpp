@@ -15,7 +15,6 @@
 #include "Url.h"
 #include "UserInterface.cxx"
 #include "UserInterface.h"
-#include "rpc/client.h"
 using homer6::Url;
 
 #include <string>
@@ -23,6 +22,7 @@ using std::string;
 
 #include "encode.h"
 #include "transport.h"
+#include <boost/circular_buffer.hpp>
 
 using namespace nre;
 namespace nre
@@ -46,6 +46,7 @@ struct App
   uint16_t rpc_port = 5999;
 
   std::future<void> transport_thread_future;
+  std::future<void> gstreamer_sink_future;
 };
 
 /* Globals */
@@ -53,6 +54,8 @@ Config config;
 App app;
 Encode* encoder = nullptr;
 Transport* transporter = nullptr;
+
+boost::circular_buffer<BufferDataStruct> receive_buffer(30);
 
 }  // namespace nre
 
@@ -143,23 +146,38 @@ void nre::startStream()
   transporter->statistics_callback = gotRistStatistics;
   app.current_bitrate = std::stoi(config.bitrate);
   if (config.use_rpc_control) {
+
+    RpcData rpcData;
+      rpcData.bitrate = config.bitrate;
+      rpcData.rist_output_address = config.rist_output_address;
+      rpcData.rist_output_buffer_min = config.rist_output_buffer_min;
+      rpcData.rist_output_buffer_max = config.rist_output_buffer_max;
+      rpcData.rist_output_rtt_min = config.rist_output_rtt_min;
+      rpcData.rist_output_rtt_max = config.rist_output_rtt_max;
+      rpcData.rist_output_reorder_buffer = config.rist_output_reorder_buffer;
+      rpcData.rist_output_bandwidth = config.rist_output_bandwidth;
+      rpcData.rtmp_address = config.rtmp_address;
+      rpcData.rtmp_key = config.rtmp_key;
+    
+
     try {
       Url url {fmt::format("rist://{}", config.rist_output_address)};
 
       rpc::client client(url.getHost(), app.rpc_port);
       auto result = client.call(
           "start",
-          fmt::format(
-              "rtmp://{}/{} live=true", config.rtmp_address, config.rtmp_key));
+          rpcData);
     } catch (const std::exception& e) {
       logAppend(e.what());
     }
   }
-
+  app.is_running = true;
   encoder->run_encode_thread();
   transporter->setup_rist_sender();
   app.transport_thread_future = std::async(
-          std::launch::async, rist_loop);
+          std::launch::async, rist_send_loop);
+  // app.gstreamer_sink_future = std::async(
+  //         std::launch::async, gstreamer_sink_loop);
 
   Fl::lock();
   app.ui->btnStartStream->deactivate();
@@ -213,12 +231,36 @@ void nre::stopStream()
   }
 }
 
-void nre::rist_loop()
+void nre::rist_send_loop()
 {
-  app.is_running = true;
   while (app.is_running) {
-    transporter->send_buffer(encoder->pull_buffer());
-    // std::this_thread::sleep_for(std::chrono::milliseconds(8)); // wait 1/4 of 60fps frametime
+    // if (!receive_buffer.empty()) {
+    //   BufferDataStruct ringData = receive_buffer[0];
+    //   receive_buffer.pop_front();
+
+    //   transporter->send_buffer(ringData);
+    // } 
+    // else {
+    //   std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
+    // }
+    BufferDataStruct bufData = encoder->pull_buffer();
+    transporter->send_buffer(bufData);
+  }
+  app.is_running = false;
+}
+
+void nre::gstreamer_sink_loop()
+{
+  while (app.is_running) {
+    BufferDataStruct bufData = encoder->pull_buffer();
+    if (bufData.buf_size > 0)
+    {
+      receive_buffer.push_back(bufData);
+    }
+    else
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
   }
   app.is_running = false;
 }

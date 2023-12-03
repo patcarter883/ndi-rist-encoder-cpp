@@ -31,7 +31,7 @@ void Transport::setup_rist_sender() {
   this->ristSender.initSender(interfaceListSender, mySendConfiguration);
 }
 
-void Transport::send_buffer(BufferDataStruct buffer_data)
+void Transport::send_buffer(BufferDataStruct& buffer_data)
 {
     this->ristSender.sendData(buffer_data.buf_data, buffer_data.buf_size);
 }
