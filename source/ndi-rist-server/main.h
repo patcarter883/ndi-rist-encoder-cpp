@@ -38,10 +38,7 @@ struct App
 
 struct Config
 {
-  std::string rist_input_address =
-      "rist://"
-      "@0.0.0.0:5000?bandwidth=10000buffer-min=245&buffer-max=5000&rtt-min=40&"
-      "rtt-max=500&reorder-buffer=120&congestion-control=1";
+  std::string rist_input_address = "";
   std::string rtmp_output_address = "";
 };
 
