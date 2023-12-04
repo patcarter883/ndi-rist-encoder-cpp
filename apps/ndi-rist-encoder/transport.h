@@ -1,6 +1,6 @@
 #include <utility>
 
-#include <RISTNet.h>
+#include <librist.h>
 #include <fmt/core.h>
 #include <gst/gst.h>
 

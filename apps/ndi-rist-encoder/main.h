@@ -2,7 +2,7 @@
 #include "common.h"
 
 #include <FL/Fl.H>
-#include <RISTNet.h>
+#include <librist.h>
 #include "UserInterface.h"
 #include <gst/gst.h>
 #include <string>
