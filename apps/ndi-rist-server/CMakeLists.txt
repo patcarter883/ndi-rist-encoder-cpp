@@ -11,7 +11,7 @@ target_include_directories(ndi-rist-server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ex
 IF (WIN32)
 
     target_link_libraries(ndi-rist-server PRIVATE ${GSTREAMER_LIBRARIES})
-    target_link_libraries(ndi-rist-server PRIVATE Threads::Threads  iphlpapi wsock32 ws2_32)
+    target_link_libraries(ndi-rist-server PRIVATE Threads::Threads)
 
 ELSE()
 

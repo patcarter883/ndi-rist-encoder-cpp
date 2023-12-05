@@ -14,7 +14,7 @@
 #include <gst/rtp/rtp.h>
 #include <gst/video/video.h>
 
-#include "RISTNet.h"
+#include <ristreceiver.h>
 #include "gst/gstmessage.h"
 #include "rpc/server.h"
 

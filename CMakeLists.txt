@@ -16,7 +16,7 @@ include(cmake/variables.cmake)
  
 
 IF (WIN32)
-
+    add_compile_definitions(WIN32 WIN32_LEAN_AND_MEAN)
     find_package(GStreamer REQUIRED)
     find_package (Threads)
 
@@ -32,9 +32,10 @@ ENDIF()
 
 CPMAddPackage("gh:rpclib/rpclib#v2.3.0")
 find_package(fmt CONFIG REQUIRED)
+add_subdirectory(libs)
 add_subdirectory(apps/ndi-rist-encoder)
 add_subdirectory(apps/ndi-rist-server)
-add_subdirectory(libs)
+
 
 # ---- Install rules ----
 

@@ -154,16 +154,20 @@
     {
       "name": "release-windows",
       "inherits": ["ci-build", "ci-win64", "vcpkg", "vcpkg-win64-static"],
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
-      }
+        "cacheVariables": {
+            "CMAKE_BUILD_TYPE": "Release",
+            "CMAKE_C_COMPILER": "clang-cl",
+            "CMAKE_CXX_COMPILER": "clang-cl"
+        }
     },
     {
       "name": "debug-windows",
       "inherits": ["ci-build", "ci-win64", "vcpkg", "vcpkg-win64-static"],
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      }
+        "cacheVariables": {
+            "CMAKE_BUILD_TYPE": "Debug",
+            "CMAKE_C_COMPILER": "clang-cl",
+            "CMAKE_CXX_COMPILER": "clang-cl"
+        }
     },
     {
       "name": "release-linux",

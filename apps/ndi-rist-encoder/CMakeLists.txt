@@ -13,6 +13,7 @@ target_include_directories(ndi-rist-encoder PRIVATE ${NDI_INCLUDE_DIRS})
 target_link_libraries(ndi-rist-encoder PRIVATE fmt::fmt rpc)
 target_link_libraries(ndi-rist-encoder PRIVATE fltk fltk_gl fltk_forms fltk_images) 
 target_link_libraries(ndi-rist-encoder PRIVATE ${NDI_LIBRARIES}) 
+target_link_libraries(ndi-rist-encoder PUBLIC ristsender)
 
 IF (WIN32)
     target_link_libraries(ndi-rist-encoder PRIVATE ${GSTREAMER_LIBRARIES})
@@ -26,6 +27,6 @@ ELSE()
     PkgConfig::gstreamer-video)
 ENDIF()
 
-target_link_libraries(ndi-rist-encoder PRIVATE rpc ristsender)
+
 
 add_dependencies(ndi-rist-encoder ristsender rpc)

@@ -21,8 +21,6 @@ using homer6::Url;
 using std::string;
 
 #include "encode.h"
-#include "transport.h"
-#include <boost/circular_buffer.hpp>
 
 using namespace nre;
 namespace nre
@@ -45,7 +43,7 @@ struct App
   double previous_quality;
   uint16_t rpc_port = 5999;
 
-  std::future<void> transport_thread_future;
+  std::future<int> transport_thread_future;
   std::future<void> gstreamer_sink_future;
 };
 
@@ -53,9 +51,6 @@ struct App
 Config config;
 App app;
 Encode* encoder = nullptr;
-Transport* transporter = nullptr;
-
-boost::circular_buffer<BufferDataStruct> receive_buffer(30);
 
 }  // namespace nre
 
@@ -140,10 +135,7 @@ int nre::ristLog(void* arg, enum rist_log_level, const char* msg)
 void nre::startStream()
 {
  encoder = new Encode(&config);
- transporter = new Transport(&config);
  encoder->log_func = logAppend;
-  transporter->log_callback = &ristLog;
-  transporter->statistics_callback = gotRistStatistics;
   app.current_bitrate = std::stoi(config.bitrate);
   if (config.use_rpc_control) {
 
@@ -173,11 +165,19 @@ void nre::startStream()
   }
   app.is_running = true;
   encoder->run_encode_thread();
-  transporter->setup_rist_sender();
-  app.transport_thread_future = std::async(
-          std::launch::async, rist_send_loop);
-  // app.gstreamer_sink_future = std::async(
-  //         std::launch::async, gstreamer_sink_loop);
+  string rist_output_url = fmt::format(
+      "rist://"
+      "{}?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&"
+      "reorder-buffer={}",
+      config.rist_output_address,
+      config.rist_output_bandwidth,
+      config.rist_output_buffer_min,
+      config.rist_output_buffer_max,
+      config.rist_output_rtt_min,
+      config.rist_output_rtt_max,
+      config.rist_output_reorder_buffer);
+      string rist_input_url = "rtp://@127.0.0.1:6000";
+    app.transport_thread_future = std::async(std::launch::async, ristsender::run, rist_input_url, rist_output_url, &ristLog);
 
   Fl::lock();
   app.ui->btnStartStream->deactivate();
@@ -200,7 +200,6 @@ void nre::stopStream()
   Fl::unlock();
   Fl::awake();
   delete encoder;
-  delete transporter;
 
   if (config.use_rpc_control) {
     try {
@@ -231,39 +230,39 @@ void nre::stopStream()
   }
 }
 
-void nre::rist_send_loop()
-{
-  while (app.is_running) {
-    // if (!receive_buffer.empty()) {
-    //   BufferDataStruct ringData = receive_buffer[0];
-    //   receive_buffer.pop_front();
+// void nre::rist_send_loop()
+// {
+//   while (app.is_running) {
+//     // if (!receive_buffer.empty()) {
+//     //   BufferDataStruct ringData = receive_buffer[0];
+//     //   receive_buffer.pop_front();
 
-    //   transporter->send_buffer(ringData);
-    // } 
-    // else {
-    //   std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
-    // }
-    BufferDataStruct bufData = encoder->pull_buffer();
-    transporter->send_buffer(bufData);
-  }
-  app.is_running = false;
-}
+//     //   transporter->send_buffer(ringData);
+//     // } 
+//     // else {
+//     //   std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
+//     // }
+//     BufferDataStruct bufData = encoder->pull_buffer();
+//     transporter->send_buffer(bufData);
+//   }
+//   app.is_running = false;
+// }
 
-void nre::gstreamer_sink_loop()
-{
-  while (app.is_running) {
-    BufferDataStruct bufData = encoder->pull_buffer();
-    if (bufData.buf_size > 0)
-    {
-      receive_buffer.push_back(bufData);
-    }
-    else
-    {
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-  }
-  app.is_running = false;
-}
+// void nre::gstreamer_sink_loop()
+// {
+//   while (app.is_running) {
+//     BufferDataStruct bufData = encoder->pull_buffer();
+//     if (bufData.buf_size > 0)
+//     {
+//       receive_buffer.push_back(bufData);
+//     }
+//     else
+//     {
+//       std::this_thread::sleep_for(std::chrono::milliseconds(1));
+//     }
+//   }
+//   app.is_running = false;
+// }
 
 void ristStatistics_cb(void* msgPtr)
 {

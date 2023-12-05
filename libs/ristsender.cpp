@@ -1,11 +1,24 @@
 #include "ristsender.h"
+#include <string>
+//#include <getopt-shim.h>
+#include <pthread-shim.c>
+#include <csignal>
+//#include <common/attributes.h>
+#include <oob_shared.c>
+#include <vcs_version.h>
+//#include <cerrno>
+//#include <cstdio>
+#include <cinttypes>
+#include <librist/librist.h>
+#include <librist/udpsocket.h>
+
 
 /* librist. Copyright © 2020 SipRadius LLC. All right reserved.
  * Author: Sergio Ammirata, Ph.D. <sergio@ammirata.net>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
-
+namespace ristsender {
 static int signalReceived = 0;
 static int peer_connected_count = 0;
 static struct rist_logging_settings logging_settings = LOGGING_SETTINGS_INITIALIZER;
@@ -45,54 +58,6 @@ struct rist_sender_args {
 	uint16_t stream_id;
 };
 
-static struct option long_options[] = {
-{ "inputurl",        required_argument, NULL, 'i' },
-{ "outputurl",       required_argument, NULL, 'o' },
-{ "buffer",          required_argument, NULL, 'b' },
-{ "secret",          required_argument, NULL, 's' },
-{ "encryption-type", required_argument, NULL, 'e' },
-{ "profile",         required_argument, NULL, 'p' },
-{ "null-packet-deletion",  no_argument, NULL, 'n' },
-{ "stats",           required_argument, NULL, 'S' },
-{ "verbose-level",   required_argument, NULL, 'v' },
-{ "remote-logging",  required_argument, NULL, 'r' },
-#if HAVE_SRP_SUPPORT
-{ "srpfile",         required_argument, NULL, 'F' },
-#endif
-{ "fast-start",      required_argument, NULL, 'f' },
-{ "help",            no_argument,       NULL, 'h' },
-{ "help-url",        no_argument,       NULL, 'u' },
-{ 0, 0, 0, 0 },
-};
-
-const char help_str[] = "Usage: %s [OPTIONS] \nWhere OPTIONS are:\n"
-"       -i | --inputurl  udp://... or rtp://... * | Comma separated list of input udp or rtp URLs            |\n"
-"       -o | --outputurl rist://...             * | Comma separated list of output rist URLs                 |\n"
-"       -b | --buffer value                       | Default buffer size for packet retransmissions           |\n"
-"       -s | --secret PWD                         | Default pre-shared encryption secret                     |\n"
-"       -e | --encryption-type TYPE               | Default Encryption type (0, 128 = AES-128, 256 = AES-256)|\n"
-"       -p | --profile number                     | Rist profile (0 = simple, 1 = main, 2 = advanced)        |\n"
-"       -n | --null-packet-deletion               | Enable NPD, receiver needs to support this!              |\n"
-"       -S | --statsinterval value (ms)           | Interval at which stats get printed, 0 to disable        |\n"
-"       -v | --verbose-level value                | To disable logging: -1, log levels match syslog levels   |\n"
-"       -r | --remote-logging IP:PORT             | Send logs and stats to this IP:PORT using udp messages   |\n"
-#if HAVE_SRP_SUPPORT
-"       -F | --srpfile filepath                   | When in listening mode, use this file to hold the list   |\n"
-"                                                 | of usernames and passwords to validate against. Use the  |\n"
-"                                                 | ristsrppasswd tool to create the line entries.           |\n"
-#endif
-"       -f | --fast-start value                   | Controls data output flow before handshake is completed  |\n"
-//"                                                 | -1 = hold data out and igmp source joins                 |\n"
-"                                                 |  0 = hold data out                                       |\n"
-"                                                 |  1 = start to send data immediately                      |\n"
-"       -h | --help                               | Show this help                                           |\n"
-"       -u | --help-url                           | Show all the possible url options                        |\n"
-"   * == mandatory value \n"
-"Default values: %s \n"
-"       --profile 1               \\\n"
-"       --statsinterval 1000      \\\n"
-"       --verbose-level 6         \n";
-
 /*
 static uint64_t risttools_convertRTPtoNTP(uint32_t i_rtp)
 {
@@ -103,10 +68,6 @@ static uint64_t risttools_convertRTPtoNTP(uint32_t i_rtp)
 	return i_ntp;
 }
 */
-
-#if HAVE_SRP_SUPPORT
-	char *srpfile = NULL;
-#endif
 
 static void input_udp_recv(struct evsocket_ctx *evctx, int fd, short revents, void *arg)
 {
@@ -194,12 +155,6 @@ static void input_udp_sockerr(struct evsocket_ctx *evctx, int fd, short revents,
 	RIST_MARK_UNUSED(revents);
 	RIST_MARK_UNUSED(fd);
 	rist_log(&logging_settings, RIST_LOG_ERROR, "Socket error on sd=%d, stream-id=%d !\n", callback_object->sd, callback_object->udp_config->stream_id);
-}
-
-static void usage(char *cmd)
-{
-	rist_log(&logging_settings, RIST_LOG_INFO, "%s\n%s version %s libRIST library: %s API version: %s\n", cmd, help_str, LIBRIST_VERSION, librist_version(), librist_api_version());
-	exit(1);
 }
 
 static void connection_status_callback(void *arg, struct rist_peer *peer, enum rist_connection_status peer_connection_status)
@@ -343,26 +298,6 @@ static struct rist_peer* setup_rist_peer(struct rist_ctx_wrap *w, struct rist_se
 		return NULL;
 	}
 
-#if HAVE_SRP_SUPPORT
-	int srp_error = 0;
-	if (setup->profile != RIST_PROFILE_SIMPLE) {
-		if (strlen(peer_config_link->srp_username) > 0 && strlen(peer_config_link->srp_password) > 0)
-		{
-			srp_error = rist_enable_eap_srp_2(peer, peer_config_link->srp_username, peer_config_link->srp_password, NULL, NULL);
-			if (srp_error)
-				rist_log(&logging_settings, RIST_LOG_WARN, "Error %d trying to enable SRP for peer\n", srp_error);
-		}
-		if (srpfile)
-		{
-			srp_error = rist_enable_eap_srp_2(peer, NULL, NULL, user_verifier_lookup, srpfile);
-			if (srp_error)
-				rist_log(&logging_settings, RIST_LOG_WARN, "Error %d trying to enable SRP global authenticator, file %s\n", srp_error, srpfile);
-		}
-	}
-	else
-		rist_log(&logging_settings, RIST_LOG_WARN, "SRP Authentication is not available for Rist Simple Profile\n");
-#endif
-
 	rist_peer_config_free2(&peer_config_link);
 
 	return peer;
@@ -412,7 +347,7 @@ static struct rist_ctx_wrap *configure_rist_output_context(char* outputurl,
 	char *outputtoken = strtok_r(tmpoutputurl, ",", &saveptroutput);
 
 	// All output peers should be on the same context per receiver
-	if (rist_sender_create(&sender_ctx, peer_args->profile, 0, &logging_settings) != 0) {
+	if (rist_sender_create(&sender_ctx, static_cast<rist_profile>(peer_args->profile), 0, &logging_settings) != 0) {
 		rist_log(&logging_settings, RIST_LOG_ERROR, "Could not create rist sender context\n");
 		return  NULL;
 	}
@@ -444,7 +379,7 @@ static struct rist_ctx_wrap *configure_rist_output_context(char* outputurl,
 	return w;
 }
 
-int main(int argc, char *argv[])
+int run(std::string input_url, std::string output_url, int (*log_cb)(void *arg, rist_log_level, const char *msg))
 {
 	int c;
 	int option_index;
@@ -481,74 +416,18 @@ int main(int argc, char *argv[])
 
 	// Default log settings
     struct rist_logging_settings *log_ptr = &logging_settings;
-    if (rist_logging_set(&log_ptr, loglevel, NULL, NULL, NULL,
+    if (rist_logging_set(&log_ptr, loglevel, log_cb, NULL, NULL,
                          stderr) != 0) {
       fprintf(stderr, "Failed to setup default logging!\n");
       exit(1);
 	}
 
 	rist_log(&logging_settings, RIST_LOG_INFO, "Starting ristsender version: %s libRIST library: %s API version: %s\n", LIBRIST_VERSION, librist_version(), librist_api_version());
-
-	while ((c = getopt_long(argc, argv, "r:i:o:b:s:e:t:m:p:S:F:f:v:hunM", long_options, &option_index)) != -1) {
-		switch (c) {
-		case 'i':
-			inputurl = _strdup(optarg);
-		break;
-		case 'o':
-			outputurl = _strdup(optarg);
-		break;
-		case 'b':
-			buffer_size = atoi(optarg);
-		break;
-		case 's':
-			shared_secret = _strdup(optarg);
-		break;
-		case 'e':
-			encryption_type = atoi(optarg);
-		break;
-		case 'p':
-			profile = atoi(optarg);
-		break;
-		case 'S':
-			statsinterval = atoi(optarg);
-		break;
-		case 'v':
-			loglevel = atoi(optarg);
-		break;
-		case 'r':
-			remote_log_address = _strdup(optarg);
-		break;
-#if HAVE_SRP_SUPPORT
-		case 'F': {
-			FILE* f = fopen(optarg, "r");
-			if (!f) {
-				rist_log(&logging_settings, RIST_LOG_ERROR, "Could not open srp file %s\n", optarg);
-				return 1;
-			}
-			srpfile = _strdup(optarg);
-		}
-		break;
-#endif
-		case 'f':
-			faststart = atoi(optarg);
-			break;
-		case 'n':
-			npd = true;
-			break;
-		case 'h':
-			/* Fall through */
-		default:
-			usage(argv[0]);
-		break;
-		}
-	}
+	inputurl = input_url.data();
+	outputurl = output_url.data();
 
 	if (inputurl == NULL || outputurl == NULL) {
-		usage(argv[0]);
-	}
-
-	if (argc < 2) {
-		usage(argv[0]);
+		return 1;
 	}
 
 	if (faststart < 0 || faststart > 1) {
@@ -634,7 +513,7 @@ int main(int argc, char *argv[])
 			struct rist_ctx_wrap *w = (rist_ctx_wrap*)calloc(1, sizeof(*w));
 			w->id = prometheus_id++;
 			callback_object[i].receiver_ctx = w;
-			if (rist_receiver_create(&callback_object[i].receiver_ctx->ctx, peer_args.profile, &logging_settings) != 0) {
+			if (rist_receiver_create(&callback_object[i].receiver_ctx->ctx, static_cast<rist_profile>(peer_args.profile), &logging_settings) != 0) {
 				rist_log(&logging_settings, RIST_LOG_ERROR, "Could not create rist receiver context\n");
 				goto next;
 			}
@@ -751,4 +630,5 @@ shutdown:
 	if (shared_secret)
 		free(shared_secret);
 	return 0;
+}
 }

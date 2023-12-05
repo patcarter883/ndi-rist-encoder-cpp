@@ -8,7 +8,7 @@ void Encode::pipeline_build_source() {
 }
 
 void Encode::pipeline_build_sink() {
-    this->pipeline_str += " appsink buffer-list=false wait-on-eos=false sync=false name=video_sink  "
+    this->pipeline_str += " udpsink host=127.0.0.1 port=6000 sync=false name=video_sink  "
       "mpegtsmux name=tsmux ! rtpmp2tpay ! video_sink. ";
 }
 
