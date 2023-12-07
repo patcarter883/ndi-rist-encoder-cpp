@@ -28,6 +28,7 @@ set_source_files_properties( ${CMAKE_CURRENT_SOURCE_DIR}/rist/contrib/lz4/xxhash
 
 add_library(ristsender STATIC
         ristsender.cpp
+        oob_shared.c
         )
         target_link_libraries(ristsender PRIVATE Threads::Threads)
         target_link_libraries(ristsender PUBLIC librist)
@@ -46,11 +47,11 @@ target_include_directories(ristsender PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist/bu
 target_include_directories(ristsender PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist/contrib)
 target_include_directories(ristsender PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist/contrib/mbedtls/include)
 target_include_directories(ristsender PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist/src)
-target_include_directories(ristsender PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist/tools)
 target_include_directories(ristsender PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_library(ristreceiver STATIC
         ristreceiver.cpp
+        oob_shared.c
         )
 target_link_libraries(ristreceiver PRIVATE librist Threads::Threads)
 IF (WIN32)
@@ -66,7 +67,6 @@ target_include_directories(ristreceiver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist/
 target_include_directories(ristreceiver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist/contrib)
 target_include_directories(ristreceiver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist/contrib/mbedtls/include)
 target_include_directories(ristreceiver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist/src)
-target_include_directories(ristreceiver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist/tools)
 target_include_directories(ristreceiver PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_compile_features(ristsender PRIVATE cxx_std_20)

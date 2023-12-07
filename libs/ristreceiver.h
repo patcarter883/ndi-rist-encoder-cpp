@@ -6,6 +6,7 @@
 
 #include <librist/librist.h>
 #include <string>
+#include <atomic>
 
 #if defined(_WIN32) || defined(_WIN64)
 # define strtok_r strtok_s
@@ -21,6 +22,9 @@
 #define DATA_READ_MODE_POLL 1
 #define DATA_READ_MODE_API 2
 
-namespace ristreceiver {
-    int run(std::string input_url, std::string output_url, int (*log_cb)(void *arg, rist_log_level, const char *msg));
+namespace rist_receiver {
+    int run_rist_receiver(std::string input_url,
+        std::string output_url, 
+        int (*log_cb)(void *arg, rist_log_level, const char *msg),
+        std::atomic_bool* ptr_is_playing);
 }

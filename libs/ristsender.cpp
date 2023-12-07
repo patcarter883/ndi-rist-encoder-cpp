@@ -1,24 +1,20 @@
 #include "ristsender.h"
 #include <string>
-//#include <getopt-shim.h>
-#include <pthread-shim.c>
 #include <csignal>
-//#include <common/attributes.h>
-#include <oob_shared.c>
+#include "oob_shared.h"
 #include <vcs_version.h>
-//#include <cerrno>
-//#include <cstdio>
 #include <cinttypes>
-#include <librist/librist.h>
 #include <librist/udpsocket.h>
+#include <atomic>
+#include <thread>
+#include <chrono>
 
-
+namespace rist_sender{
 /* librist. Copyright © 2020 SipRadius LLC. All right reserved.
  * Author: Sergio Ammirata, Ph.D. <sergio@ammirata.net>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
-namespace ristsender {
 static int signalReceived = 0;
 static int peer_connected_count = 0;
 static struct rist_logging_settings logging_settings = LOGGING_SETTINGS_INITIALIZER;
@@ -57,6 +53,10 @@ struct rist_sender_args {
 	int statsinterval;
 	uint16_t stream_id;
 };
+
+	void (*ristStatistics_cb)(const rist_stats& statistics);
+
+	std::atomic_bool* is_playing;
 
 /*
 static uint64_t risttools_convertRTPtoNTP(uint32_t i_rtp)
@@ -210,7 +210,7 @@ static int cb_recv_oob(void *arg, const struct rist_oob_block *oob_block)
 
 static int cb_stats(void *arg, const struct rist_stats *stats_container)
 {
-	rist_log(&logging_settings, RIST_LOG_INFO, "%s\n\n", stats_container->stats_json);
+        ristStatistics_cb(*stats_container);
 	(void)arg;
 	rist_stats_free(stats_container);
 	return 0;
@@ -263,13 +263,6 @@ static struct rist_peer* setup_rist_peer(struct rist_ctx_wrap *w, struct rist_se
 
 	/* Process overrides */
 	struct rist_peer_config *overrides_peer_config = peer_config_link;
-	if (setup->shared_secret && peer_config_link->secret[0] == 0) {
-		strncpy(overrides_peer_config->secret, setup->shared_secret, RIST_MAX_STRING_SHORT -1);
-		if (setup->encryption_type)
-			overrides_peer_config->key_size = setup->encryption_type;
-		else if (!overrides_peer_config->key_size)
-			overrides_peer_config->key_size = 128;
-	}
 	if (setup->buffer_size) {
 		overrides_peer_config->recovery_length_min = setup->buffer_size;
 		overrides_peer_config->recovery_length_max = setup->buffer_size;
@@ -303,11 +296,10 @@ static struct rist_peer* setup_rist_peer(struct rist_ctx_wrap *w, struct rist_se
 	return peer;
 }
 
-static PTHREAD_START_FUNC(input_loop, arg)
+static int input_loop(struct rist_callback_object* callback_object)
 {
-	struct rist_callback_object *callback_object = (rist_callback_object *) arg;
 	// This is my main loop (one thread per receiver)
-	while (!signalReceived) {
+	while (*is_playing) {
 		if (callback_object->receiver_ctx)
 		{
 			// RIST receiver
@@ -379,15 +371,16 @@ static struct rist_ctx_wrap *configure_rist_output_context(char* outputurl,
 	return w;
 }
 
-int run(std::string input_url, std::string output_url, int (*log_cb)(void *arg, rist_log_level, const char *msg))
+int run_rist_sender(std::string input_url,
+        std::string output_url,
+        int (*log_cb)(void* arg, rist_log_level, const char* msg),
+        void (*stats_cb)(const rist_stats& statistics),
+		std::atomic_bool *ptr_is_playing)
 {
-	int c;
-	int option_index;
 	struct rist_callback_object callback_object[MAX_INPUT_COUNT] = { {0} };
 	struct evsocket_event *event[MAX_INPUT_COUNT];
 	char *inputurl = NULL;
 	char *outputurl = NULL;
-	char *shared_secret = NULL;
 	int buffer_size = 0;
 	int encryption_type = 0;
 	int statsinterval = 1000;
@@ -398,7 +391,8 @@ int run(std::string input_url, std::string output_url, int (*log_cb)(void *arg, 
 	struct rist_sender_args peer_args;
 	char *remote_log_address = NULL;
 	bool thread_started[MAX_INPUT_COUNT +1] = {false};
-	pthread_t thread_main_loop[MAX_INPUT_COUNT+1] = { 0 };
+        std::vector<std::thread> thread_main_loop;
+        is_playing = ptr_is_playing;
 
 	for (size_t i = 0; i < MAX_INPUT_COUNT; i++)
 		event[i] = NULL;
@@ -418,9 +412,11 @@ int run(std::string input_url, std::string output_url, int (*log_cb)(void *arg, 
     struct rist_logging_settings *log_ptr = &logging_settings;
     if (rist_logging_set(&log_ptr, loglevel, log_cb, NULL, NULL,
                          stderr) != 0) {
-      fprintf(stderr, "Failed to setup default logging!\n");
+      rist_log(&logging_settings, RIST_LOG_ERROR,  "Failed to setup default logging!\n");
       exit(1);
 	}
+
+	ristStatistics_cb = stats_cb;
 
 	rist_log(&logging_settings, RIST_LOG_INFO, "Starting ristsender version: %s libRIST library: %s API version: %s\n", LIBRIST_VERSION, librist_version(), librist_api_version());
 	inputurl = input_url.data();
@@ -431,23 +427,16 @@ int run(std::string input_url, std::string output_url, int (*log_cb)(void *arg, 
 	}
 
 	if (faststart < 0 || faststart > 1) {
-		fprintf(stderr,"Invalid or not implemented fast-start mode %d\n", faststart);
+		rist_log(&logging_settings, RIST_LOG_ERROR, "Invalid or not implemented fast-start mode %d\n", faststart);
 		exit(1);
 	}
 
 	if (profile == RIST_PROFILE_SIMPLE || faststart > 0)
 		peer_connected_count = 1;
 
-	// Update log settings with custom loglevel and remote address if necessary
-	if (rist_logging_set(&log_ptr, loglevel, NULL, NULL, remote_log_address, stderr) != 0) {
-		fprintf(stderr,"Failed to setup logging\n");
-		exit(1);
-	}
-
 	peer_args.loglevel = loglevel;
 	peer_args.profile = profile;
 	peer_args.encryption_type = encryption_type;
-	peer_args.shared_secret = shared_secret;
 	peer_args.buffer_size = buffer_size;
 	peer_args.statsinterval = statsinterval;
 
@@ -562,7 +551,9 @@ next:
  		goto shutdown;
  	}
 
-	if (evctx && pthread_create(&thread_main_loop[0], NULL, input_loop, (void *)callback_object) != 0)
+	thread_main_loop.emplace_back(std::thread(input_loop, &callback_object[0]));
+
+	if (evctx && thread_main_loop.empty())
 	{
 		rist_log(&logging_settings, RIST_LOG_ERROR, "Could not start udp receiver thread\n");
 		goto shutdown;
@@ -579,7 +570,9 @@ next:
 			rist_log(&logging_settings, RIST_LOG_ERROR, "Could not start rist receiver\n");
 			goto shutdown;
 		}
-		if (callback_object[i].receiver_ctx && pthread_create(&thread_main_loop[i+1], NULL, input_loop, (void *)&callback_object[i]) != 0)
+                thread_main_loop.emplace_back(std::thread(input_loop, &callback_object[i]));
+                if (callback_object[i].receiver_ctx
+                    && thread_main_loop.size() != (i + 1))
 		{
 			rist_log(&logging_settings, RIST_LOG_ERROR, "Could not start send rist receiver thread\n");
 			goto shutdown;
@@ -588,11 +581,9 @@ next:
 		}
 	}
 
-#ifdef _WIN32
-		system("pause");
-#else
-		pause();
-#endif
+	while (*is_playing) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
 
 shutdown:
 	if (udp_config) {
@@ -618,17 +609,11 @@ shutdown:
 	}
 
 	for (size_t i = 0; i <= MAX_INPUT_COUNT; i++) {
-		if (thread_started[i])
-			pthread_join(thread_main_loop[i], NULL);
+                if (thread_started[i] && thread_main_loop[i].joinable())
+                        thread_main_loop[i].join();
 	}
 
 	rist_logging_unset_global();
-	if (inputurl)
-		free(inputurl);
-	if (outputurl)
-		free(outputurl);
-	if (shared_secret)
-		free(shared_secret);
 	return 0;
 }
 }

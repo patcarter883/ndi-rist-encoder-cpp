@@ -5,26 +5,48 @@
 #include <future>
 #include <thread>
 
-#include "main.h"
-
 #include <FL/Fl.H>
 #include <fmt/core.h>
 #include <gst/app/gstappsink.h>
 #include <gst/gst.h>
-
+#include <atomic>
+#include <ristsender.h>
 #include "Url.h"
 #include "UserInterface.cxx"
 #include "UserInterface.h"
 using homer6::Url;
-
+#include "rpc/client.h"
 #include <string>
 using std::string;
 
 #include "encode.h"
 
-using namespace nre;
-namespace nre
+void startStream();
+void stopStream();
+
+void* previewNDISource();
+void* findNdiDevices(void* p);
+void addNdiDevice(gpointer devicePtr, gpointer p);
+
+void gotRistStatistics(const rist_stats& statistics);
+void logAppend(std::string logMessage);
+void ristLogAppend(std::string logMessage);
+int ristLog(void* arg, enum rist_log_level, const char* msg);
+
+struct RpcData
 {
+  std::string bitrate;
+  std::string rist_output_address;
+  std::string rist_output_buffer_min;
+  std::string rist_output_buffer_max;
+  std::string rist_output_rtt_min;
+  std::string rist_output_rtt_max;
+  std::string rist_output_reorder_buffer;
+  std::string rist_output_bandwidth;
+  std::string rtmp_address;
+  std::string rtmp_key;
+  MSGPACK_DEFINE_ARRAY(bitrate,   rist_output_address,   rist_output_buffer_min,   rist_output_buffer_max,   rist_output_rtt_min,   rist_output_rtt_max,   rist_output_reorder_buffer,   rist_output_bandwidth,   rtmp_address,   rtmp_key);
+};
 struct App
 {
   UserInterface* ui = new UserInterface;
@@ -47,12 +69,16 @@ struct App
   std::future<void> gstreamer_sink_future;
 };
 
+namespace nre
+{
 /* Globals */
 Config config;
 App app;
 Encode* encoder = nullptr;
 
 }  // namespace nre
+
+using namespace nre;
 
 void initUi()
 {
@@ -110,7 +136,7 @@ void ristLogAppend_cb(void* msgPtr)
   return;
 }
 
-void nre::logAppend(string logMessage)
+void logAppend(string logMessage)
 {
   auto* logMessageCpy = new string;
   *logMessageCpy = _strdup(logMessage.c_str());
@@ -118,7 +144,7 @@ void nre::logAppend(string logMessage)
   return;
 }
 
-void nre::ristLogAppend(string logMessage)
+void ristLogAppend(string logMessage)
 {
   auto* logMessageCpy = new string;
   *logMessageCpy = _strdup(logMessage.c_str());
@@ -126,13 +152,13 @@ void nre::ristLogAppend(string logMessage)
   return;
 }
 
-int nre::ristLog(void* arg, enum rist_log_level, const char* msg)
+int ristLog(void* arg, enum rist_log_level, const char* msg)
 {
   ristLogAppend(msg);
   return 1;
 }
 
-void nre::startStream()
+void startStream()
 {
  encoder = new Encode(&config);
  encoder->log_func = logAppend;
@@ -177,7 +203,13 @@ void nre::startStream()
       config.rist_output_rtt_max,
       config.rist_output_reorder_buffer);
       string rist_input_url = "rtp://@127.0.0.1:6000";
-    app.transport_thread_future = std::async(std::launch::async, ristsender::run, rist_input_url, rist_output_url, &ristLog);
+  app.transport_thread_future = std::async(std::launch::async,
+                                           rist_sender::run_rist_sender,
+                                           rist_input_url,
+                                           rist_output_url,
+                                           &ristLog,
+                                           &gotRistStatistics,
+                                           &app.is_running);
 
   Fl::lock();
   app.ui->btnStartStream->deactivate();
@@ -186,7 +218,7 @@ void nre::startStream()
   Fl::awake();
 }
 
-void nre::stopStream()
+void stopStream()
 {
   app.is_running = false;
   encoder->stop_encode_thread();
@@ -230,40 +262,6 @@ void nre::stopStream()
   }
 }
 
-// void nre::rist_send_loop()
-// {
-//   while (app.is_running) {
-//     // if (!receive_buffer.empty()) {
-//     //   BufferDataStruct ringData = receive_buffer[0];
-//     //   receive_buffer.pop_front();
-
-//     //   transporter->send_buffer(ringData);
-//     // } 
-//     // else {
-//     //   std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
-//     // }
-//     BufferDataStruct bufData = encoder->pull_buffer();
-//     transporter->send_buffer(bufData);
-//   }
-//   app.is_running = false;
-// }
-
-// void nre::gstreamer_sink_loop()
-// {
-//   while (app.is_running) {
-//     BufferDataStruct bufData = encoder->pull_buffer();
-//     if (bufData.buf_size > 0)
-//     {
-//       receive_buffer.push_back(bufData);
-//     }
-//     else
-//     {
-//       std::this_thread::sleep_for(std::chrono::milliseconds(1));
-//     }
-//   }
-//   app.is_running = false;
-// }
-
 void ristStatistics_cb(void* msgPtr)
 {
   rist_stats statistics = *(rist_stats*)msgPtr;
@@ -283,7 +281,7 @@ void ristStatistics_cb(void* msgPtr)
   return;
 }
 
-void nre::gotRistStatistics(const rist_stats& statistics)
+void gotRistStatistics(const rist_stats& statistics)
 {
   int bitrateDelta = 0;
   double qualDiffPct;
@@ -322,7 +320,7 @@ void nre::gotRistStatistics(const rist_stats& statistics)
   Fl::awake(ristStatistics_cb, p_statistics);
 }
 
-void* nre::previewNDISource()
+void* previewNDISource()
 {
   // string pipelineString = fmt::format(
   //     "ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux   "
@@ -430,7 +428,7 @@ void use_rpc_cb(Fl_Check_Button* o, void* v)
   config.use_rpc_control = o->value();
 }
 
-void* nre::findNdiDevices(void* p)
+void* findNdiDevices(void* p)
 {
   UserInterface* ui = (UserInterface*)p;
   GstBus* bus;
@@ -472,7 +470,7 @@ void* nre::findNdiDevices(void* p)
   return 0L;
 }
 
-void nre::addNdiDevice(gpointer devicePtr, gpointer p)
+void addNdiDevice(gpointer devicePtr, gpointer p)
 {
   GstDevice* device = static_cast<GstDevice*>(devicePtr);
 
