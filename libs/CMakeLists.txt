@@ -30,11 +30,10 @@ add_library(ristsender STATIC
         ristsender.cpp
         oob_shared.c
         )
-        target_link_libraries(ristsender PRIVATE Threads::Threads)
         target_link_libraries(ristsender PUBLIC librist)
 IF (WIN32)
         target_compile_definitions(ristsender PRIVATE WIN32_LEAN_AND_MEAN __STDC_FORMAT_MACROS)
-        target_link_libraries(ristsender PRIVATE iphlpapi wsock32 ws2_32)
+        target_link_libraries(ristsender PRIVATE iphlpapi wsock32 ws2_32 Threads::Threads)
         target_compile_definitions(ristsender PRIVATE _CRT_SECURE_NO_WARNINGS)
 
 ENDIF()
@@ -53,10 +52,10 @@ add_library(ristreceiver STATIC
         ristreceiver.cpp
         oob_shared.c
         )
-target_link_libraries(ristreceiver PRIVATE librist Threads::Threads)
+target_link_libraries(ristreceiver PRIVATE librist)
 IF (WIN32)
         target_compile_definitions(ristreceiver PRIVATE WIN32_LEAN_AND_MEAN)
-        target_link_libraries(ristreceiver PRIVATE iphlpapi wsock32 ws2_32)
+        target_link_libraries(ristreceiver PRIVATE iphlpapi wsock32 ws2_32 Threads::Threads)
         target_compile_definitions(ristreceiver PRIVATE _CRT_SECURE_NO_WARNINGS)
 ENDIF()
 target_include_directories(ristreceiver PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rist/include/)
