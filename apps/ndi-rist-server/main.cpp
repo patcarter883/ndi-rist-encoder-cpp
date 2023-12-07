@@ -70,7 +70,7 @@ void rpc_call_stop();
 
 void start_gstreamer(RpcData &data);
 void start_rist(RpcData &data);
-
+int ristLog(void* arg, enum rist_log_level logLevel, const char* msg);
 void stop_gstreamer();
 void stop_rist();
 
@@ -174,7 +174,7 @@ void parse_pipeline()
                                   G_TYPE_INT,
                                   90000,
                                   NULL);
-  gst_app_src_set_caps(GST_APP_SRC(app.video_src), caps);
+  g_object_set(app.video_src, "caps", caps, NULL);
 
   app.bus = gst_element_get_bus(app.datasrc_pipeline);
 }
@@ -251,7 +251,7 @@ void stop_rist()
 
 int ristLog(void* arg, enum rist_log_level logLevel, const char* msg)
 {
-  log(msg);
+  // log(msg);
   return 1;
 }
 
