@@ -32,6 +32,7 @@ struct Config
   std::string rtmp_address = "sydney.restream.io/live";
   std::string rtmp_key = "";
   uint16_t use_rpc_control = 1;
+  bool upscale = true;
 };
 
 struct BufferDataStruct

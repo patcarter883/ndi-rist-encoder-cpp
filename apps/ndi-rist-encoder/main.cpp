@@ -45,7 +45,9 @@ struct RpcData
   std::string rist_output_bandwidth;
   std::string rtmp_address;
   std::string rtmp_key;
-  MSGPACK_DEFINE_ARRAY(bitrate,   rist_output_address,   rist_output_buffer_min,   rist_output_buffer_max,   rist_output_rtt_min,   rist_output_rtt_max,   rist_output_reorder_buffer,   rist_output_bandwidth,   rtmp_address,   rtmp_key);
+  int codec;
+  bool upscale;
+  MSGPACK_DEFINE_ARRAY(bitrate,   rist_output_address,   rist_output_buffer_min,   rist_output_buffer_max,   rist_output_rtt_min,   rist_output_rtt_max,   rist_output_reorder_buffer,   rist_output_bandwidth,   rtmp_address,   rtmp_key, codec, upscale);
 };
 struct App
 {
@@ -176,6 +178,8 @@ void startStream()
       rpcData.rist_output_bandwidth = config.rist_output_bandwidth;
       rpcData.rtmp_address = config.rtmp_address;
       rpcData.rtmp_key = config.rtmp_key;
+      rpcData.codec = static_cast<int>(config.codec);
+      rpcData.upscale = config.upscale;
     
 
     try {

@@ -2,6 +2,7 @@ install(
     TARGETS ndi-rist-encoder
 )
 
+set(CPACK_GENERATOR "NSIS")
 set(CPACK_PACKAGE_NAME "NDI Rist Encoder")
 set(CPACK_PACKAGE_VENDOR "Pat Carter")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
