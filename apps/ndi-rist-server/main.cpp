@@ -67,7 +67,7 @@ struct RpcData
   std::string rist_output_bandwidth;
   std::string rtmp_address;
   std::string rtmp_key;
-  Codec codec;
+  int codec;
   bool upscale;
   MSGPACK_DEFINE_ARRAY(bitrate,   rist_output_address,   rist_output_buffer_min,   rist_output_buffer_max,   rist_output_rtt_min,   rist_output_rtt_max,   rist_output_reorder_buffer,   rist_output_bandwidth,   rtmp_address,   rtmp_key, codec, upscale);
 };
@@ -214,7 +214,7 @@ void start_gstreamer(RpcData& data)
 {
   config.rtmp_output_address =
       fmt::format("rtmp://{}/{} live=true", data.rtmp_address, data.rtmp_key);
-  config.codec = data.codec;
+  config.codec = static_cast<Codec>(data.codec);
   config.upscale = data.upscale;
   build_pipeline();
   parse_pipeline();
@@ -248,7 +248,6 @@ void stop_gstreamer()
 
 void start_rist(RpcData& data)
 {
-  config.codec = data.codec;
   string rist_input_url = fmt::format(
       "rist://@[::]:5000"
       "?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&"
