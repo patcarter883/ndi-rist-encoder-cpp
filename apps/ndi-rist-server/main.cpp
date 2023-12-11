@@ -21,6 +21,12 @@ using std::endl;
 using std::string;
 using std::vector;
 
+enum class Codec {
+  h264,
+  h265,
+  av1
+};
+
 struct App
 {
   std::string pipeline_str;
@@ -39,6 +45,8 @@ struct Config
 {
   std::string rist_input_address = "";
   std::string rtmp_output_address = "";
+  Codec codec = Codec::h264;
+  bool upscale = true;
 };
 
 struct BufferDataStruct
@@ -59,7 +67,9 @@ struct RpcData
   std::string rist_output_bandwidth;
   std::string rtmp_address;
   std::string rtmp_key;
-  MSGPACK_DEFINE_ARRAY(bitrate,   rist_output_address,   rist_output_buffer_min,   rist_output_buffer_max,   rist_output_rtt_min,   rist_output_rtt_max,   rist_output_reorder_buffer,   rist_output_bandwidth,   rtmp_address,   rtmp_key);
+  int codec;
+  bool upscale;
+  MSGPACK_DEFINE_ARRAY(bitrate,   rist_output_address,   rist_output_buffer_min,   rist_output_buffer_max,   rist_output_rtt_min,   rist_output_rtt_max,   rist_output_reorder_buffer,   rist_output_bandwidth,   rtmp_address,   rtmp_key, codec, upscale);
 };
 
 void log();
@@ -121,15 +131,36 @@ void pipeline_build_audio_remux()
 
 void pipeline_build_video_decode()
 {
-  app.pipeline_str += " demux. ! av1parse ! queue ! nvav1dec !";
+  switch (config.codec)
+  {
+  case Codec::av1:
+    app.pipeline_str += " demux. ! av1parse ! queue ! nvav1dec !";
+    break;
+
+  case Codec::h265:
+    app.pipeline_str += " demux. ! h265parse ! queue ! nvh265dec !";
+    break;
+  
+  default:
+    app.pipeline_str += " demux. ! h264parse ! queue ! nvh264dec !";
+    break;
+  }
 }
 
 void pipeline_build_video_encoder()
 {
-  app.pipeline_str +=
+  if (config.upscale)
+  {
+    app.pipeline_str +=
       " queue ! cudascale ! "
       "video/x-raw(memory:CUDAMemory),width=2560,height=1440 ! "
-      "queue ! nvh264enc rc-mode=cbr-hq bitrate=16000 gop-size=120 preset=hq ! "
+      "queue ! nvh264enc rc-mode=cbr-hq bitrate=24000 gop-size=120 preset=hq bframes=2 ! ";
+  } else {
+    app.pipeline_str +=
+      "queue ! nvh264enc rc-mode=cbr-hq bitrate=12000 gop-size=120 preset=hq bframes=2 ! ";
+  }
+  
+  app.pipeline_str +=
       "video/x-h264,framerate=60/1,profile=high ! h264parse ! outq.sink_0 "
       "outq.src_0 ! mux.";
 }
@@ -183,6 +214,8 @@ void start_gstreamer(RpcData& data)
 {
   config.rtmp_output_address =
       fmt::format("rtmp://{}/{} live=true", data.rtmp_address, data.rtmp_key);
+  config.codec = static_cast<Codec>(data.codec);
+  config.upscale = data.upscale;
   build_pipeline();
   parse_pipeline();
   
@@ -201,7 +234,7 @@ void stop_gstreamer()
 
   std::future_status status;
 
-  switch (status = app.gstreamer_bus_future.wait_for(std::chrono::seconds(1));
+  switch (status = app.gstreamer_bus_future.wait_for(std::chrono::seconds(5));
           status)
   {
     case std::future_status::timeout:

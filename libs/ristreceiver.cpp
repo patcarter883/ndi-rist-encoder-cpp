@@ -321,10 +321,10 @@ int run_rist_receiver(std::string input_url,
 		}
 	}
 
-	if (rist_stats_callback_set(ctx, statsinterval, cb_stats, (void*)0) == -1) {
-		rist_log(&logging_settings, RIST_LOG_ERROR, "Could not enable stats callback\n");
-		exit(1);
-	}
+	// if (rist_stats_callback_set(ctx, statsinterval, cb_stats, (void*)0) == -1) {
+	// 	rist_log(&logging_settings, RIST_LOG_ERROR, "Could not enable stats callback\n");
+	// 	exit(1);
+	// }
 
 	char *saveptr1;
 	char *inputtoken = strtok_r(inputurl, ",", &saveptr1);
@@ -459,11 +459,9 @@ next:
 	}
 	/* Start the rist protocol thread */
 	if (data_read_mode == DATA_READ_MODE_CALLBACK) {
-#ifdef _WIN32
-		system("pause");
-#else
-		pause();
-#endif
+while (*is_playing) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
 	}
 	else if (data_read_mode == DATA_READ_MODE_API) {
 #ifndef _WIN32
@@ -556,21 +554,15 @@ next:
 	}
 
 	rist_logging_unset_global();
-	if (inputurl)
-		free(inputurl);
-	if (outputurl)
-		free(outputurl);
-	if (shared_secret)
-		free(shared_secret);
 
-	struct ristreceiver_flow_cumulative_stats *stats, *next;
-	stats = stats_list;
-	while (stats)
-	{
-		next = stats->next;
-		free(stats);
-		stats = next;
-	}
+	// struct ristreceiver_flow_cumulative_stats *stats, *next;
+	// stats = stats_list;
+	// while (stats)
+	// {
+	// 	next = stats->next;
+	// 	free(stats);
+	// 	stats = next;
+	// }
 	return 0;
 }
 }
