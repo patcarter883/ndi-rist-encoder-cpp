@@ -262,20 +262,20 @@ static struct rist_peer* setup_rist_peer(struct rist_ctx_wrap *w, struct rist_se
 	}
 
 	/* Process overrides */
-	struct rist_peer_config *overrides_peer_config = peer_config_link;
-	if (setup->buffer_size) {
-		overrides_peer_config->recovery_length_min = setup->buffer_size;
-		overrides_peer_config->recovery_length_max = setup->buffer_size;
-	}
-	if (setup->stream_id) {
-		if (setup->stream_id % 2 != 0) {
-			rist_log(&logging_settings, RIST_LOG_ERROR, "Error parsing peer options for sender: %s, stream-id (%d) must be even!\n\n", setup->token, setup->stream_id);
-			return NULL;
-		}
-		else {
-			overrides_peer_config->virt_dst_port = setup->stream_id;
-		}
-	}
+	// struct rist_peer_config *overrides_peer_config = peer_config_link;
+	// if (setup->buffer_size) {
+	// 	overrides_peer_config->recovery_length_min = setup->buffer_size;
+	// 	overrides_peer_config->recovery_length_max = setup->buffer_size;
+	// }
+	// if (setup->stream_id) {
+	// 	if (setup->stream_id % 2 != 0) {
+	// 		rist_log(&logging_settings, RIST_LOG_ERROR, "Error parsing peer options for sender: %s, stream-id (%d) must be even!\n\n", setup->token, setup->stream_id);
+	// 		return NULL;
+	// 	}
+	// 	else {
+	// 		overrides_peer_config->virt_dst_port = setup->stream_id;
+	// 	}
+	// }
 
 	/* Print config */
 	rist_log(&logging_settings, RIST_LOG_INFO, "Link configured with maxrate=%d bufmin=%d bufmax=%d reorder=%d rttmin=%d rttmax=%d congestion_control=%d min_retries=%d max_retries=%d\n",
@@ -551,14 +551,17 @@ next:
  		goto shutdown;
  	}
 
-	thread_main_loop.emplace_back(std::thread(input_loop, &callback_object[0]));
-
-	if (evctx && thread_main_loop.empty())
+	if (evctx)
 	{
-		rist_log(&logging_settings, RIST_LOG_ERROR, "Could not start udp receiver thread\n");
-		goto shutdown;
+		thread_main_loop.emplace_back(std::thread(input_loop, &callback_object[0]));
+		if (thread_main_loop.empty())
+		{
+			rist_log(&logging_settings, RIST_LOG_ERROR, "Could not start udp receiver thread\n");
+			goto shutdown;
+		}
+		thread_started[0] = true;
 	}
-	thread_started[0] = true;
+	
 
 	for (size_t i = 0; i < MAX_INPUT_COUNT; i++) {
 		if (((rist_listens && i == 0) || !rist_listens) &&
@@ -570,14 +573,18 @@ next:
 			rist_log(&logging_settings, RIST_LOG_ERROR, "Could not start rist receiver\n");
 			goto shutdown;
 		}
-                thread_main_loop.emplace_back(std::thread(input_loop, &callback_object[i]));
-                if (callback_object[i].receiver_ctx
-                    && thread_main_loop.size() != (i + 1))
+
+                
+		if (callback_object[i].receiver_ctx)
 		{
-			rist_log(&logging_settings, RIST_LOG_ERROR, "Could not start send rist receiver thread\n");
+			thread_main_loop.emplace_back(std::thread(input_loop, &callback_object[i]));
+			if (thread_main_loop.size() != (i + 1))
+			{
+				rist_log(&logging_settings, RIST_LOG_ERROR, "Could not start send rist receiver thread\n");
 			goto shutdown;
-		} else if (callback_object[i].receiver_ctx) {
+			}
 			thread_started[i+1] = true;
+			
 		}
 	}
 
