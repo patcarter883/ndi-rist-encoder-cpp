@@ -3,6 +3,8 @@ Let's you select an NDI source, encodes it, sticks it in an MPEG Transport Strea
 
 Will encode to H264, H265, or AV1 using software, Nvidia, AMD, or Intel encoding.
 
+![NDI RIST Encoder Diagram](https://github.com/patcarter883/ndi-rist-encoder-cpp/assets/33055183/67ae0df2-b8f3-4aa5-9ae6-eab974de4587)
+
 AV1 really works over the MPEG Transport Stream if you use the [GStreamer](https://github.com/patcarter883/gstreamer.git) that I've included a pending merge request for AV1 MPEGTS support in. There is a built windows version available under releases to make it easy to get the client side up and running.
 
 Can control the NDI RIST server to automatically start a RIST receiver and GStreamer pipeline that will transcode to H264 if needed, and send to an RTMP server.
