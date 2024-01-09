@@ -539,7 +539,7 @@ int run_rist_sender(std::string input_url,
 			callback_object[i].udp_config = udp_config;
 			udp_config = NULL;
 			callback_object[i].evctx = evctx;
-			event[i] = evsocket_addevent(callback_object[i].evctx, callback_object[i].sd, EVSOCKET_EV_READ, input_udp_recv, input_udp_sockerr,
+			event[i] = evsocket_addevent(callback_object[i].evctx, callback_object[i].sd, EVSOCKET_EV_READ, &input_udp_recv, &input_udp_sockerr,
 				(void *)&callback_object[i]);
 		}
 
@@ -589,7 +589,7 @@ next:
 	}
 
 	while (*is_playing) {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
 shutdown:
@@ -612,6 +612,11 @@ shutdown:
 		if (callback_object[i].sender_ctx) {
 			rist_destroy(callback_object[i].sender_ctx->ctx);
 			free(callback_object[i].sender_ctx);
+		}
+		// Cleanup udp receiver
+		if (callback_object[i].evctx) {
+			evsocket_destroy(callback_object[i].evctx);
+			udpsocket_close(callback_object[i].sd);
 		}
 	}
 
