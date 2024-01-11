@@ -39,6 +39,8 @@ struct App
 
   std::future<int> rist_receive_future;
   std::future<void> gstreamer_bus_future;
+
+  uint16_t udp_internal_port = 7000;
 };
 
 struct Config
@@ -117,9 +119,9 @@ void pipeline_build_sink()
 
 void pipeline_build_source()
 {
-  app.pipeline_str +=
-      " udpsrc port=6000 do-timestamp=true name=videosrc ! "
-      "rtpjitterbuffer max-ts-offset-adjustment=500 rfc7273-sync=true mode=synced sync-interval=1 add-reference-timestamp-meta=1 ! rtpmp2tdepay ! tsparse ! tsdemux name=demux ";
+  app.pipeline_str += fmt::format(
+      " udpsrc port={} do-timestamp=true name=videosrc ! "
+      "rtpjitterbuffer max-ts-offset-adjustment=500 rfc7273-sync=true mode=synced sync-interval=1 add-reference-timestamp-meta=1 ! rtpmp2tdepay ! tsparse ! tsdemux name=demux ", app.udp_internal_port);
 }
 
 void pipeline_build_audio_remux()
@@ -258,7 +260,7 @@ void start_rist(RpcData& data)
       data.rist_output_rtt_min,
       data.rist_output_rtt_max,
       data.rist_output_reorder_buffer);
-      string rist_output_url = "rtp://@127.0.0.1:6000";
+      string rist_output_url = fmt::format("rtp://@127.0.0.1:{}", app.udp_internal_port);
       app.rist_receive_future = std::async(std::launch::async, rist_receiver::run_rist_receiver,
                                            rist_input_url,
                                            rist_output_url,
