@@ -13,6 +13,9 @@
 #include <thread>
 #include <vector>
 #include <fmt/core.h>
+#include "Url.h"
+using homer6::Url;
+
 namespace nrs
 {
 using std::cerr;
@@ -46,9 +49,11 @@ struct App
 struct Config
 {
   std::string rist_input_address = "";
-  std::string rtmp_output_address = "";
+  Url stream_output_address;
+  std::string streamid = "";
   Codec codec = Codec::h264;
   bool upscale = true;
+  std::string reencode_bitrate = "";
 };
 
 struct BufferDataStruct
@@ -69,9 +74,22 @@ struct RpcData
   std::string rist_output_bandwidth;
   std::string rtmp_address;
   std::string rtmp_key;
+  std::string reencode_bitrate;
   int codec;
   bool upscale;
-  MSGPACK_DEFINE_ARRAY(bitrate,   rist_output_address,   rist_output_buffer_min,   rist_output_buffer_max,   rist_output_rtt_min,   rist_output_rtt_max,   rist_output_reorder_buffer,   rist_output_bandwidth,   rtmp_address,   rtmp_key, codec, upscale);
+  MSGPACK_DEFINE_ARRAY(bitrate,
+                       rist_output_address,
+                       rist_output_buffer_min,
+                       rist_output_buffer_max,
+                       rist_output_rtt_min,
+                       rist_output_rtt_max,
+                       rist_output_reorder_buffer,
+                       rist_output_bandwidth,
+                       rtmp_address,
+                       rtmp_key,
+                       reencode_bitrate,
+                       codec,
+                       upscale);
 };
 
 void log();
@@ -80,8 +98,8 @@ void run_rpc_server();
 void rpc_call_start(RpcData data);
 void rpc_call_stop();
 
-void start_gstreamer(RpcData &data);
-void start_rist(RpcData &data);
+void start_gstreamer();
+void start_rist(string rist_input_url, string rist_output_url);
 int ristLog(void* arg, enum rist_log_level logLevel, const char* msg);
 void stop_gstreamer();
 void stop_rist();
@@ -112,9 +130,20 @@ void log(string message)
 
 void pipeline_build_sink()
 {
-  app.pipeline_str +=
-      "flvmux streamable=true name=mux ! queue ! rtmpsink location='"
-      + config.rtmp_output_address + "' name=rtmpSink multiqueue name=outq ";
+
+  if (config.stream_output_address.getScheme() == "srt")
+  {
+    app.pipeline_str += fmt::format(
+      "mpegtsmux name=mux ! rtpmp2tpay ! queue ! srtsink uri={}"
+      " mode=caller wait-for-connection=false streamid={} name=srtSink multiqueue name=outq ", config.stream_output_address.toString(), config.streamid);
+  }
+  else
+  {
+    app.pipeline_str += fmt::format(
+      "flvmux streamable=true name=mux ! queue ! rtmpsink live=true location='{}/{}'"
+      " name=rtmpSink multiqueue name=outq ", config.stream_output_address.toString(), config.streamid);
+  }
+  
 }
 
 void pipeline_build_source()
@@ -155,15 +184,14 @@ void pipeline_build_video_encoder()
   {
     app.pipeline_str +=
       " queue ! cudascale ! "
-      "video/x-raw(memory:CUDAMemory),width=2560,height=1440 ! "
-      "queue ! nvh264enc rc-mode=cbr-hq bitrate=24000 gop-size=120 preset=hq bframes=2 ! ";
-  } else {
+      "video/x-raw(memory:CUDAMemory),width=2560,height=1440 ! ";
+  } 
+
     app.pipeline_str +=
-      "queue ! nvh264enc rc-mode=cbr-hq bitrate=12000 gop-size=120 preset=hq bframes=2 ! ";
-  }
+      fmt::format("queue ! nvh264enc rc-mode=cbr-hq bitrate={} gop-size=120 preset=hq bframes=2 ! ", config.reencode_bitrate);
   
   app.pipeline_str +=
-      "video/x-h264,framerate=60/1,profile=high ! h264parse ! outq.sink_0 "
+      "video/x-h264,framerate=60/1,profile=high ! h264parse config-interval=-1 ! outq.sink_0 "
       "outq.src_0 ! mux.";
 }
 
@@ -212,12 +240,9 @@ void parse_pipeline()
   app.bus = gst_element_get_bus(app.datasrc_pipeline);
 }
 
-void start_gstreamer(RpcData& data)
+void start_gstreamer()
 {
-  config.rtmp_output_address =
-      fmt::format("rtmp://{}/{} live=true", data.rtmp_address, data.rtmp_key);
-  config.codec = static_cast<Codec>(data.codec);
-  config.upscale = data.upscale;
+
   build_pipeline();
   parse_pipeline();
   
@@ -248,19 +273,9 @@ void stop_gstreamer()
   }
 }
 
-void start_rist(RpcData& data)
+void start_rist(string rist_input_url, string rist_output_url)
 {
-  string rist_input_url = fmt::format(
-      "rist://@[::]:5000"
-      "?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&"
-      "reorder-buffer={}",
-      data.rist_output_bandwidth,
-      data.rist_output_buffer_min,
-      data.rist_output_buffer_max,
-      data.rist_output_rtt_min,
-      data.rist_output_rtt_max,
-      data.rist_output_reorder_buffer);
-      string rist_output_url = fmt::format("rtp://@127.0.0.1:{}", app.udp_internal_port);
+
       app.rist_receive_future = std::async(std::launch::async, rist_receiver::run_rist_receiver,
                                            rist_input_url,
                                            rist_output_url,
@@ -338,9 +353,28 @@ void handle_gstreamer_message(GstMessage* message)
 void rpc_call_start(RpcData data)
 {
   log("Start Requested for destination " + data.rtmp_address);
+
+  config.stream_output_address.fromString(data.rtmp_address);
+  config.streamid = data.rtmp_key;
+  config.codec = static_cast<Codec>(data.codec);
+  config.upscale = data.upscale;
+  config.reencode_bitrate = data.reencode_bitrate;
+
+    string rist_input_url = fmt::format(
+      "rist://@[::]:5000"
+      "?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&"
+      "reorder-buffer={}",
+      data.rist_output_bandwidth,
+      data.rist_output_buffer_min,
+      data.rist_output_buffer_max,
+      data.rist_output_rtt_min,
+      data.rist_output_rtt_max,
+      data.rist_output_reorder_buffer);
+      string rist_output_url = fmt::format("rtp://@127.0.0.1:{}", app.udp_internal_port);
+
   app.is_playing = true;
-  start_gstreamer(data);
-  start_rist(data);
+  start_gstreamer();
+  start_rist(rist_input_url, rist_output_url);
 }
 
 void rpc_call_stop()
