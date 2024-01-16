@@ -25,7 +25,7 @@ void Transport::setup_rist_sender() {
 
   this->ristSender.statisticsCallback = this->statistics_callback;
 
-  mySendConfiguration.mLogLevel = RIST_LOG_INFO;
+  mySendConfiguration.mLogLevel = RIST_LOG_DEBUG;
   mySendConfiguration.mProfile = RIST_PROFILE_MAIN;
   mySendConfiguration.mLogSetting.get()->log_cb = this->log_callback;
   this->ristSender.initSender(interfaceListSender, mySendConfiguration);

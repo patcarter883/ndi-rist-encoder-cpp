@@ -8,7 +8,7 @@ void Encode::pipeline_build_source() {
 }
 
 void Encode::pipeline_build_sink() {
-    this->pipeline_str += " appsink buffer-list=false wait-on-eos=false sync=false name=video_sink  "
+    this->pipeline_str += " udpsink host=127.0.0.1 port=6000 sync=true name=video_sink  "
       "mpegtsmux name=tsmux ! rtpmp2tpay ! video_sink. ";
 }
 
@@ -116,21 +116,21 @@ void Encode::pipeline_build_software_encoder() {
 
 void Encode::pipeline_build_amd_h264_encoder() {
     this->pipeline_str += fmt::format(
-          fmt::runtime("amfh264enc name=vidEncoder  bitrate={} rate-control=cbr usage=low-latency ! video/x-h264,framerate=60/1,profile=high ! h264parse "),
+          fmt::runtime("amfh264enc name=vidEncoder  bitrate={} rate-control=cbr usage=low-latency preset=quality pre-encode=true pa-hqmb-mode=auto ! video/x-h264,framerate=60/1,profile=high ! h264parse "),
           this->config->bitrate);
 }
 
 void Encode::pipeline_build_amd_h265_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("amfh265enc name=vidEncoder bitrate={} rate-control=cbr "
-          "usage=low-latency ! video/x-h265,framerate=60/1 ! h265parse "),
+          "usage=low-latency preset=quality pre-encode=true pa-hqmb-mode=auto ! video/x-h265,framerate=60/1 ! h265parse "),
           this->config->bitrate);
 }
 
 void Encode::pipeline_build_amd_av1_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("amfav1enc name=vidEncoder bitrate={} rate-control=cbr "
-          "usage=low-latency preset=high-quality ! video/x-av1,framerate=60/1 "
+          "usage=low-latency preset=high-quality  pre-encode=true pa-hqmb-mode=auto ! video/x-av1,framerate=60/1 "
           "! av1parse "),
           this->config->bitrate);
 }

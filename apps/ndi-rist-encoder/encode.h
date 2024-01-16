@@ -25,30 +25,6 @@ public:
   BufferDataStruct pull_buffer();
   void set_encode_bitrate(int newBitrate);
   Encode(Config* config) { this->config = config; }
-  ~Encode()
-  {
-
-  }
-  Encode(const Encode& other)  // copy constructor
-      : Encode(other.config)
-  {
-  }
-
-  Encode(Encode&& other) noexcept  // move constructor
-      : config(std::exchange(other.config, nullptr))
-  {
-  }
-
-  Encode& operator=(const Encode& other)  // copy assignment
-  {
-    return *this = Encode(other);
-  }
-
-  Encode& operator=(Encode&& other) noexcept  // move assignment
-  {
-    std::swap(config, other.config);
-    return *this;
-  }
 
 private:
   std::string pipeline_str;

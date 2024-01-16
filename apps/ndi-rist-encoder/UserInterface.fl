@@ -10,7 +10,7 @@ class UserInterface {open
   } {
     Fl_Window mainWindow {
       label {NDI RIST Encoder} open
-      xywh {442 335 1330 610} type Double resizable visible
+      xywh {384 389 1330 610} type Double resizable visible
     } {
       Fl_Group inputGroup {
         label Input
@@ -20,11 +20,6 @@ class UserInterface {open
           label {NDI Source}
           xywh {104 32 140 22} down_box BORDER_BOX
         } {}
-        Fl_Button previewSourceBtn {
-          label {Preview Source}
-          callback preview_cb
-          xywh {64 92 185 22}
-        }
         Fl_Button btnRefreshSources {
           label {Refresh Sources}
           callback refreshSources_cb
@@ -54,35 +49,35 @@ class UserInterface {open
           MenuItem av1CodecChoice {
             label AV1
             user_data {Codec::av1}
-            callback select_codec_cb selected
+            callback select_codec_cb
             xywh {0 0 100 20}
           }
         }
         Fl_Choice encoderSelect {
-          label Encoder
+          label Encoder open
           xywh {141 173 92 22} down_box BORDER_BOX
         } {
           MenuItem softwareEncoderChoice {
             label Software
-            user_data {"software"}
+            user_data {Encoder::software}
             callback select_encoder_cb
             xywh {10 10 100 20}
           }
           MenuItem amdEncoderChoice {
             label AMD
-            user_data {"amd"}
+            user_data {Encoder::amd}
             callback select_encoder_cb
             xywh {10 10 100 20}
           }
           MenuItem qsvEncoderChoice {
             label {Intel QSV}
-            user_data {"qsv"}
-            callback select_encoder_cb
+            user_data {Encoder::qsv}
+            callback select_encoder_cb selected
             xywh {10 10 100 20}
           }
           MenuItem nvencEncoderChoice {
             label {Nvidia NVENC}
-            user_data {"nvenc"}
+            user_data {Encoder::nvenc}
             callback select_encoder_cb
             xywh {20 20 100 20}
           }
@@ -95,7 +90,7 @@ class UserInterface {open
       }
       Fl_Group {} {
         label Output open
-        xywh {390 33 218 107}
+        xywh {385 33 225 157}
       } {
         Fl_Input ristAddressInput {
           label {RIST Address}
@@ -115,7 +110,17 @@ class UserInterface {open
         Fl_Check_Button useRpcInput {
           label {Use server remote control.}
           callback use_rpc_cb
-          xywh {390 115 25 25} down_box DOWN_BOX
+          xywh {390 145 25 25} down_box DOWN_BOX
+        }
+        Fl_Check_Button upscaleInput {
+          label Upscale
+          callback upscale_cb
+          xywh {390 165 25 25} down_box DOWN_BOX
+        }
+        Fl_Input reencodeBitrateInput {
+          label {Reencode Bitrate}
+          callback reencodeBitrate_cb
+          xywh {390 115 220 25}
         }
       }
       Fl_Group {} {
