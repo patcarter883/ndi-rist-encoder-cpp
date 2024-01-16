@@ -11,7 +11,8 @@ Will encode to H264, H265, or AV1 using software, Nvidia, AMD, or Intel encoding
 - Install the [encoder app](https://github.com/patcarter883/ndi-rist-encoder-cpp/releases/download/v0.2.0/NDI.Rist.Encoder-0.2.0-win64.exe).
 - Download the [server app](https://github.com/patcarter883/ndi-rist-encoder-cpp/releases/download/v0.2.0/ndi-rist-server.exe) and run on your server. This currently requires an Nvidia GPU for video decoding and encoding. Support for Intel and AMD are planned. The server is being developed and tested on a Vultr Cloud GPU Server
 - Make sure your server is accessible from you encoder computer, and has network ports 5000/UDP and 5999/TCP open.
-##Encoder App
+
+## Encoder App
 - Select your NDI source.
 - Setup the Encode Section
   - Select the codec to be used for the stream being sent from the encoder computer to the server. If you select AV1 and have not installed the custom GStreamer above it will not work.
