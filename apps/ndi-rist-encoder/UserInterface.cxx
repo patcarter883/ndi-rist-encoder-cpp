@@ -31,9 +31,6 @@ UserInterface::UserInterface() {
       { ndiSourceSelect = new Fl_Choice(104, 32, 140, 22, "NDI Source");
         ndiSourceSelect->down_box(FL_BORDER_BOX);
       } // Fl_Choice* ndiSourceSelect
-      { previewSourceBtn = new Fl_Button(64, 92, 185, 22, "Preview Source");
-        previewSourceBtn->callback((Fl_Callback*)preview_cb);
-      } // Fl_Button* previewSourceBtn
       { btnRefreshSources = new Fl_Button(64, 62, 185, 22, "Refresh Sources");
         btnRefreshSources->callback((Fl_Callback*)refreshSources_cb);
       } // Fl_Button* btnRefreshSources
@@ -53,20 +50,27 @@ UserInterface::UserInterface() {
       } // Fl_Input* encoderBitrateInput
       encodeGroup->end();
     } // Fl_Group* encodeGroup
-    { Fl_Group* o = new Fl_Group(390, 33, 218, 107, "Output");
+    { Fl_Group* o = new Fl_Group(385, 33, 225, 157, "Output");
       { ristAddressInput = new Fl_Input(390, 33, 218, 22, "RIST Address");
         ristAddressInput->callback((Fl_Callback*)rist_address_cb);
       } // Fl_Input* ristAddressInput
-      { rtmpAddressInput = new Fl_Input(390, 60, 218, 22, "RTMP Server");
+      { rtmpAddressInput = new Fl_Input(390, 60, 218, 22, "Stream Server");
         rtmpAddressInput->callback((Fl_Callback*)rtmp_address_cb);
       } // Fl_Input* rtmpAddressInput
-      { rtmpKeyInput = new Fl_Input(390, 88, 218, 22, "RTMP Key");
+      { rtmpKeyInput = new Fl_Input(390, 88, 218, 22, "Stream Key");
         rtmpKeyInput->callback((Fl_Callback*)rtmp_key_cb);
       } // Fl_Input* rtmpKeyInput
-      { useRpcInput = new Fl_Check_Button(390, 115, 25, 25, "Use server remote control.");
+      { useRpcInput = new Fl_Check_Button(390, 145, 25, 25, "Use server remote control.");
         useRpcInput->down_box(FL_DOWN_BOX);
         useRpcInput->callback((Fl_Callback*)use_rpc_cb);
       } // Fl_Check_Button* useRpcInput
+      { upscaleInput = new Fl_Check_Button(390, 165, 25, 25, "Upscale");
+        upscaleInput->down_box(FL_DOWN_BOX);
+        upscaleInput->callback((Fl_Callback*)upscale_cb);
+      } // Fl_Check_Button* upscaleInput
+      { reencodeBitrateInput = new Fl_Input(390, 115, 220, 25, "Reencode Bitrate");
+        reencodeBitrateInput->callback((Fl_Callback*)reencodeBitrate_cb);
+      } // Fl_Input* reencodeBitrateInput
       o->end();
     } // Fl_Group* o
     { Fl_Group* o = new Fl_Group(765, 28, 95, 149, "RIST Settings");

@@ -5,7 +5,7 @@ include(cmake/prelude.cmake)
 
 project(
     ndi-rist
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "NDI to RTMP streamer using AV1 over MPEGTS"
     HOMEPAGE_URL "https://github.com/patcarter883/ndi-rist-encoder-cpp.git"
     LANGUAGES C CXX

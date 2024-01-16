@@ -45,9 +45,22 @@ struct RpcData
   std::string rist_output_bandwidth;
   std::string rtmp_address;
   std::string rtmp_key;
+  std::string reencode_bitrate;
   int codec;
   bool upscale;
-  MSGPACK_DEFINE_ARRAY(bitrate,   rist_output_address,   rist_output_buffer_min,   rist_output_buffer_max,   rist_output_rtt_min,   rist_output_rtt_max,   rist_output_reorder_buffer,   rist_output_bandwidth,   rtmp_address,   rtmp_key, codec, upscale);
+  MSGPACK_DEFINE_ARRAY(bitrate,
+                       rist_output_address,
+                       rist_output_buffer_min,
+                       rist_output_buffer_max,
+                       rist_output_rtt_min,
+                       rist_output_rtt_max,
+                       rist_output_reorder_buffer,
+                       rist_output_bandwidth,
+                       rtmp_address,
+                       rtmp_key,
+                       reencode_bitrate,
+                       codec,
+                       upscale);
 };
 struct App
 {
@@ -96,6 +109,8 @@ void initUi()
       config.rist_output_reorder_buffer.c_str());
   app.ui->encoderBitrateInput->value(config.bitrate.c_str());
   app.ui->useRpcInput->value(config.use_rpc_control);
+  app.ui->upscaleInput->value(config.upscale);
+  app.ui->reencodeBitrateInput->value(config.reencode_bitrate.c_str());
   app.ui->show(NULL, NULL);
 }
 
@@ -180,15 +195,30 @@ void startStream()
       rpcData.rtmp_key = config.rtmp_key;
       rpcData.codec = static_cast<int>(config.codec);
       rpcData.upscale = config.upscale;
+      rpcData.reencode_bitrate = config.reencode_bitrate;
     
 
     try {
-      Url url {fmt::format("rist://{}", config.rist_output_address)};
+        std::future<void> future = std::async(
+            std::launch::async,
+          [rpcData]()
+            {
+              Url url {fmt::format("rist://{}", config.rist_output_address)};
+              rpc::client client(url.getHost(), app.rpc_port);
+              client.call("start", rpcData);
+            });
 
-      rpc::client client(url.getHost(), app.rpc_port);
-      auto result = client.call(
-          "start",
-          rpcData);
+        std::future_status status;
+
+        using namespace std::chrono_literals;
+        switch (status = future.wait_for(5s); status) {
+          case std::future_status::timeout:
+            logAppend("Server start timed out.");
+            break;
+          case std::future_status::ready:
+            logAppend("Server pipeline started.");
+            break;
+        }
     } catch (const std::exception& e) {
       logAppend(e.what());
     }
@@ -230,11 +260,6 @@ void stopStream()
   Fl::lock();
   app.ui->btnStopStream->deactivate();
   Fl::unlock();
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-  Fl::lock();
-  app.ui->btnStartStream->activate();
-  Fl::unlock();
-  Fl::awake();
   delete encoder;
 
   if (config.use_rpc_control) {
@@ -251,7 +276,7 @@ void stopStream()
       std::future_status status;
 
       using namespace std::chrono_literals;
-      switch (status = future.wait_for(1s); status) {
+      switch (status = future.wait_for(5s); status) {
         case std::future_status::timeout:
           logAppend("Server stop timed out.");
           break;
@@ -264,6 +289,11 @@ void stopStream()
       logAppend(e.what());
     }
   }
+
+  Fl::lock();
+  app.ui->btnStartStream->activate();
+  Fl::unlock();
+  Fl::awake();
 }
 
 void ristStatistics_cb(void* msgPtr)
@@ -324,28 +354,9 @@ void gotRistStatistics(const rist_stats& statistics)
   Fl::awake(ristStatistics_cb, p_statistics);
 }
 
-void* previewNDISource()
-{
-  // string pipelineString = fmt::format(
-  //     "ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux   "
-  //     "demux.video ! queue ! videoconvert ! autovideosink  demux.audio ! queue "
-  //     "! audioconvert ! autoaudiosink",
-  //     config.ndi_input_name);
-  // parsePipeline(pipelineString);
-  // playPipeline();
-
-  return 0L;
-}
-
 void ndi_source_select_cb(Fl_Widget* o, void* v)
 {
   config.ndi_input_name = (char*)v;
-}
-
-void preview_cb(Fl_Button* o, void* v)
-{
-  std::thread thisPreviewThread(previewNDISource);
-  thisPreviewThread.detach();
 }
 
 void startStream_cb(Fl_Button* o, void* v)
@@ -425,11 +436,25 @@ void rist_reorder_buffer_cb(Fl_Input* o, void* v)
 void encoder_bitrate_cb(Fl_Input* o, void* v)
 {
   config.bitrate = o->value();
+
+  if (app.is_playing) {
+    encoder->set_encode_bitrate(std::stoi(config.bitrate));
+  }
 }
 
 void use_rpc_cb(Fl_Check_Button* o, void* v)
 {
   config.use_rpc_control = o->value();
+}
+
+void upscale_cb(Fl_Check_Button* o, void* v)
+{
+  config.upscale = o->value();
+}
+
+void reencodeBitrate_cb(Fl_Input* o, void* v)
+{
+  config.reencode_bitrate = o->value();
 }
 
 void* findNdiDevices(void* p)

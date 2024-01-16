@@ -1,6 +1,6 @@
 # ---- Declare executable ----
 
-add_executable(ndi-rist-server WIN32 ${CMAKE_CURRENT_LIST_DIR}/main.cpp ${CMAKE_CURRENT_LIST_DIR}/main.h)
+add_executable(ndi-rist-server WIN32 ${CMAKE_CURRENT_LIST_DIR}/main.cpp)
 
 target_compile_features(ndi-rist-server PRIVATE cxx_std_20)
 
