@@ -5,6 +5,11 @@
 #include <future>
 #include <thread>
 
+#include <fstream>
+#include <filesystem>
+#include <windows.h>
+#include <shlobj.h>
+
 #include <FL/Fl.H>
 #include <fmt/core.h>
 #include <gst/app/gstappsink.h>
@@ -20,6 +25,7 @@ using homer6::Url;
 using std::string;
 
 #include "encode.h"
+#include <toml++/toml.h>
 
 void startStream();
 void stopStream();
@@ -32,6 +38,9 @@ void gotRistStatistics(const rist_stats& statistics);
 void logAppend(std::string logMessage);
 void ristLogAppend(std::string logMessage);
 int ristLog(void* arg, enum rist_log_level, const char* msg);
+
+void readConfig();
+void writeConfig();
 
 struct RpcData
 {
@@ -95,10 +104,107 @@ Encode* encoder = nullptr;
 
 using namespace nre;
 
-void initUi()
+std::filesystem::path pathToConfigFile()
+{
+  WCHAR szPath[MAX_PATH];
+  if (SHGetFolderPathAndSubDirW(NULL,
+                                CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE,
+                                NULL,
+                                SHGFP_TYPE_CURRENT,
+                                L"NDI_RIST_Encoder",
+                                szPath)
+      != S_OK)
+  {
+    throw;
+  }
+  return std::filesystem::path(szPath) / L"config.toml";
+
+  /* alternatively:
+
+  if (SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, SHGFP_TYPE_CURRENT,
+  szPath) != S_OK) throw ...;
+
+  fs::path folder = fs::path(szPath) / L"MyApp";
+  fs::create_directory(folder);
+
+  return folder / L"value.dat";
+  */
+}
+
+void readConfig()
+{
+  try {
+    toml::table tbl = toml::parse_file(pathToConfigFile().c_str());
+
+    config.codec =
+        static_cast<Codec>(tbl["encode"]["codec"].value<int>().value_or(0));
+    config.encoder =
+        static_cast<Encoder>(tbl["encode"]["encoder"].value<int>().value_or(0));
+    config.bitrate = tbl["encode"]["bitrate"].value<std::string>().value_or("");
+    config.rist_output_address =
+        tbl["rist_output"]["address"].value<std::string>().value_or("");
+    config.rist_output_buffer_min =
+        tbl["rist_output"]["buffer_min"].value<std::string>().value_or("");
+    config.rist_output_buffer_max =
+        tbl["rist_output"]["buffer_max"].value<std::string>().value_or("");
+    config.rist_output_rtt_min =
+        tbl["rist_output"]["rtt_min"].value<std::string>().value_or("");
+    config.rist_output_rtt_max =
+        tbl["rist_output"]["rtt_max"].value<std::string>().value_or("");
+    config.rist_output_reorder_buffer =
+        tbl["rist_output"]["reorder_buffer"].value<std::string>().value_or("");
+    config.rist_output_bandwidth =
+        tbl["rist_output"]["bandwidth"].value<std::string>().value_or("");
+    config.rtmp_address =
+        tbl["restream_output"]["address"].value<std::string>().value_or("");
+    config.rtmp_key =
+        tbl["restream_output"]["key"].value<std::string>().value_or("");
+    config.reencode_bitrate = tbl["restream_output"]["reencode_bitrate"]
+                                  .value<std::string>()
+                                  .value_or("");
+    config.use_rpc_control =
+        tbl["restream_output"]["rpc_control"].value<int>().value_or(0);
+    config.upscale =
+        tbl["restream_output"]["upscale"].value<bool>().value_or(false);
+  }
+  catch (const toml::parse_error& err) {
+    
+  }
+}
+
+void writeConfig()
+{
+  std::ofstream write_file(pathToConfigFile());
+  if (write_file.is_open()) {
+    auto tbl = toml::table {
+        {"encode",
+         toml::table {{"codec", config.codec},
+                      {"encoder", config.encoder},
+                      {"bitrate", config.bitrate}}},
+        {"rist_output",
+         toml::table {{"address", config.rist_output_address},
+                      {"buffer_min", config.rist_output_buffer_min},
+                      {"buffer_max", config.rist_output_buffer_max},
+                      {"rtt_min", config.rist_output_rtt_min},
+                      {"rtt_max", config.rist_output_rtt_max},
+                      {"reorder_buffer", config.rist_output_reorder_buffer},
+                      {"bandwidth", config.rist_output_bandwidth}}},
+        {"restream_output",
+         toml::table {{"address", config.rtmp_address},
+                      {"key", config.rtmp_key},
+                      {"reencode_bitrate", config.reencode_bitrate},
+                      {"rpc_control", config.use_rpc_control},
+                      {"upscale", config.upscale}}}};
+    write_file << tbl;
+    write_file.close();
+  }
+}
+
+void setUiFromConfig(void* v)
 {
   app.ui->logDisplay->buffer(app.log_buff);
   app.ui->ristLogDisplay->buffer(app.rist_log_buff);
+  app.ui->ristAddressInput->value(config.rist_output_address.c_str());
   app.ui->ristAddressInput->value(config.rist_output_address.c_str());
   app.ui->ristBandwidthInput->value(config.rist_output_bandwidth.c_str());
   app.ui->ristBufferMaxInput->value(config.rist_output_buffer_max.c_str());
@@ -111,6 +217,13 @@ void initUi()
   app.ui->useRpcInput->value(config.use_rpc_control);
   app.ui->upscaleInput->value(config.upscale);
   app.ui->reencodeBitrateInput->value(config.reencode_bitrate.c_str());
+  app.ui->rtmpAddressInput->value(config.rtmp_address.c_str());
+  app.ui->rtmpKeyInput->value(config.rtmp_key.c_str());
+}
+
+void initUi()
+{
+  setUiFromConfig(nullptr);
   app.ui->show(NULL, NULL);
 }
 
@@ -121,6 +234,7 @@ int main(int argc, char** argv)
 
   /* init GStreamer */
   gst_init(&argc, &argv);
+  readConfig();
 
   Fl::lock();
   initUi();
@@ -455,6 +569,17 @@ void upscale_cb(Fl_Check_Button* o, void* v)
 void reencodeBitrate_cb(Fl_Input* o, void* v)
 {
   config.reencode_bitrate = o->value();
+}
+
+void save_settings_cb(Fl_Menu_* o, void* v)
+{
+  writeConfig();
+}
+
+void load_settings_cb(Fl_Menu_* o, void* v)
+{
+  readConfig();
+  Fl::awake(setUiFromConfig, v);
 }
 
 void* findNdiDevices(void* p)

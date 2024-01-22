@@ -1,12 +1,10 @@
 # ---- Declare executable ----
 
-add_executable(ndi-rist-server WIN32 ${CMAKE_CURRENT_LIST_DIR}/main.cpp ${CMAKE_CURRENT_LIST_DIR}/main.h ${CMAKE_CURRENT_LIST_DIR}/Url.cc)
+add_executable(ndi-rist-server ${CMAKE_CURRENT_LIST_DIR}/main.cpp ${CMAKE_CURRENT_LIST_DIR}/Url.cc)
 
 target_compile_features(ndi-rist-server PRIVATE cxx_std_20)
 
 target_include_directories(ndi-rist-server PUBLIC ${GSTREAMER_INCLUDE_DIRS})
-target_include_directories(ndi-rist-server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/)
-target_include_directories(ndi-rist-server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/rist/inc/ ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/rist/include/ ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/rist/include/librist ${CMAKE_CURRENT_SOURCE_DIR}/extern/rist-cpp/rist/build/include/librist)
 
 IF (WIN32)
 

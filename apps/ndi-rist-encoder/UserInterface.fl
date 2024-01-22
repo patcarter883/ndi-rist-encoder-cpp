@@ -2,37 +2,52 @@
 version 1.0308
 header_name {.h}
 code_name {.cxx}
+decl {\#include "common.h"} {selected public global
+}
+
 class UserInterface {open
 } {
-  decl {\#include "common.h"} {public local
-  }
   Function {UserInterface()} {open
   } {
     Fl_Window mainWindow {
       label {NDI RIST Encoder} open
-      xywh {384 389 1330 610} type Double resizable visible
+      xywh {582 190 1330 610} type Double resizable visible
     } {
+      Fl_Menu_Bar topMenu {open
+        xywh {0 0 1330 20}
+      } {
+        MenuItem saveSettingsMenuItem {
+          label {Save Settings}
+          callback save_settings_cb
+          xywh {0 0 30 20}
+        }
+        MenuItem loadSettingsMenuItem {
+          label {Load Settings}
+          callback load_settings_cb
+          xywh {0 0 100 20}
+        }
+      }
       Fl_Group inputGroup {
         label Input
-        xywh {35 25 235 99}
+        xywh {35 41 235 99}
       } {
         Fl_Choice ndiSourceSelect {
           label {NDI Source}
-          xywh {104 32 140 22} down_box BORDER_BOX
+          xywh {104 48 140 22} down_box BORDER_BOX
         } {}
         Fl_Button btnRefreshSources {
           label {Refresh Sources}
           callback refreshSources_cb
-          xywh {64 62 185 22}
+          xywh {64 78 185 22}
         }
       }
       Fl_Group encodeGroup {
-        label Encode open
-        xywh {26 143 249 97}
+        label Encode
+        xywh {26 154 249 97}
       } {
         Fl_Choice codecSelect {
           label Codec open
-          xywh {140 148 92 22} down_box BORDER_BOX
+          xywh {140 159 92 22} down_box BORDER_BOX
         } {
           MenuItem h264CodecChoice {
             label H264
@@ -55,7 +70,7 @@ class UserInterface {open
         }
         Fl_Choice encoderSelect {
           label Encoder open
-          xywh {141 173 92 22} down_box BORDER_BOX
+          xywh {141 184 92 22} down_box BORDER_BOX
         } {
           MenuItem softwareEncoderChoice {
             label Software
@@ -72,7 +87,7 @@ class UserInterface {open
           MenuItem qsvEncoderChoice {
             label {Intel QSV}
             user_data {Encoder::qsv}
-            callback select_encoder_cb selected
+            callback select_encoder_cb
             xywh {10 10 100 20}
           }
           MenuItem nvencEncoderChoice {
@@ -85,125 +100,125 @@ class UserInterface {open
         Fl_Input encoderBitrateInput {
           label {Video Bitrate}
           callback encoder_bitrate_cb
-          xywh {141 196 90 24}
+          xywh {141 207 90 24}
         }
       }
       Fl_Group {} {
-        label Output open
-        xywh {385 33 225 157}
+        label Output
+        xywh {385 41 225 157}
       } {
         Fl_Input ristAddressInput {
           label {RIST Address}
           callback rist_address_cb
-          xywh {390 33 218 22}
+          xywh {390 41 218 22}
         }
         Fl_Input rtmpAddressInput {
           label {RTMP Server}
           callback rtmp_address_cb
-          xywh {390 60 218 22}
+          xywh {390 68 218 22}
         }
         Fl_Input rtmpKeyInput {
           label {RTMP Key}
           callback rtmp_key_cb
-          xywh {390 88 218 22}
+          xywh {390 96 218 22}
         }
         Fl_Check_Button useRpcInput {
           label {Use server remote control.}
           callback use_rpc_cb
-          xywh {390 145 25 25} down_box DOWN_BOX
+          xywh {390 153 25 25} down_box DOWN_BOX
         }
         Fl_Check_Button upscaleInput {
           label Upscale
           callback upscale_cb
-          xywh {390 165 25 25} down_box DOWN_BOX
+          xywh {390 173 25 25} down_box DOWN_BOX
         }
         Fl_Input reencodeBitrateInput {
           label {Reencode Bitrate}
           callback reencodeBitrate_cb
-          xywh {390 115 220 25}
+          xywh {390 123 220 25}
         }
       }
       Fl_Group {} {
-        label {RIST Settings} open
-        xywh {765 28 95 149}
+        label {RIST Settings}
+        xywh {765 41 95 149}
       } {
         Fl_Input ristBandwidthInput {
           label Bandwidth
           callback rist_bandwidth_cb
-          xywh {765 28 92 22}
+          xywh {765 41 92 22}
         }
         Fl_Input ristBufferMinInput {
           label {Buffer Min}
           callback rist_buffer_min_cb
-          xywh {765 53 92 22}
+          xywh {765 66 92 22}
         }
         Fl_Input ristBufferMaxInput {
           label {Buffer Max}
           callback rist_buffer_max_cb
-          xywh {765 78 92 22}
+          xywh {765 91 92 22}
         }
         Fl_Input ristRttMinInput {
           label {RTT Min}
           callback rist_rtt_min_cb
-          xywh {765 103 92 22}
+          xywh {765 116 92 22}
         }
         Fl_Input ristRttMaxInput {
           label {RTT Max}
           callback rist_rtt_max_cb
-          xywh {765 128 92 22}
+          xywh {765 141 92 22}
         }
         Fl_Input ristReorderBufferInput {
           label {Reorder Buffer}
           callback rist_reorder_buffer_cb
-          xywh {765 153 92 22}
+          xywh {765 166 92 22}
         }
       }
       Fl_Button btnStartStream {
         label {Start Stream}
         callback startStream_cb
-        xywh {610 203 218 22}
+        xywh {610 214 218 22}
       }
       Fl_Button btnStopStream {
         label {Stop Stream}
         callback stopStream_cb
-        xywh {335 203 218 22} deactivate
+        xywh {335 214 218 22} deactivate
       }
       Fl_Group statsGroup {
-        label Stats
-        xywh {1040 25 266 200}
+        label Stats open
+        xywh {1040 41 266 200}
       } {
         Fl_Output bandwidthOutput {
           label Bandwidth
-          xywh {1135 50 165 24}
+          xywh {1135 66 165 24}
         }
         Fl_Output linkQualityOutput {
           label {Link Quality}
-          xywh {1135 76 165 24}
+          xywh {1135 92 165 24}
         }
         Fl_Output retransmittedPacketsOutput {
           label {Retransmitted Packets}
-          xywh {1135 101 165 24}
+          xywh {1135 117 165 24}
         }
         Fl_Output rttOutput {
           label RTT
-          xywh {1135 151 165 24}
+          xywh {1135 167 165 24}
         }
         Fl_Output totalPacketsOutput {
           label Packets
-          xywh {1135 126 165 24}
+          xywh {1135 142 165 24}
         }
         Fl_Output encodeBitrateOutput {
           label {Encode Bitrate}
-          xywh {1135 201 165 24}
+          xywh {1135 217 165 24}
         }
       }
       Fl_Text_Display logDisplay {
         label Log
-        xywh {21 246 1294 168}
+        xywh {21 257 1294 168}
       }
       Fl_Text_Display ristLogDisplay {
         label {RIST Log}
-        xywh {22 431 1293 163}
+        xywh {22 442 1293 163}
       }
     }
   }

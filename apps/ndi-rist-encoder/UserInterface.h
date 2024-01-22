@@ -3,11 +3,14 @@
 #ifndef UserInterface_h
 #define UserInterface_h
 #include <FL/Fl.H>
+#include "common.h"
 #include <FL/Fl_Double_Window.H>
+#include <FL/Fl_Menu_Bar.H>
+extern void save_settings_cb(Fl_Menu_*, void*);
+extern void load_settings_cb(Fl_Menu_*, void*);
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Choice.H>
 #include <FL/Fl_Button.H>
-#include "common.h"
 extern void refreshSources_cb(Fl_Button*, void*);
 extern void select_codec_cb(Fl_Menu_*, Codec);
 extern void select_encoder_cb(Fl_Menu_*, Encoder);
@@ -35,9 +38,12 @@ class UserInterface {
 public:
   UserInterface();
   Fl_Double_Window *mainWindow;
+  Fl_Menu_Bar *topMenu;
+  static Fl_Menu_Item menu_topMenu[];
+  static Fl_Menu_Item *saveSettingsMenuItem;
+  static Fl_Menu_Item *loadSettingsMenuItem;
   Fl_Group *inputGroup;
   Fl_Choice *ndiSourceSelect;
-  Fl_Button *previewSourceBtn;
   Fl_Button *btnRefreshSources;
   Fl_Group *encodeGroup;
   Fl_Choice *codecSelect;

@@ -2,6 +2,14 @@
 
 #include "UserInterface.h"
 
+Fl_Menu_Item UserInterface::menu_topMenu[] = {
+ {"Save Settings", 0,  (Fl_Callback*)save_settings_cb, 0, 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"Load Settings", 0,  (Fl_Callback*)load_settings_cb, 0, 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {0,0,0,0,0,0,0,0,0}
+};
+Fl_Menu_Item* UserInterface::saveSettingsMenuItem = UserInterface::menu_topMenu + 0;
+Fl_Menu_Item* UserInterface::loadSettingsMenuItem = UserInterface::menu_topMenu + 1;
+
 Fl_Menu_Item UserInterface::menu_codecSelect[] = {
  {"H264", 0,  (Fl_Callback*)select_codec_cb, (void*)(Codec::h264), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
  {"H265", 0,  (Fl_Callback*)select_codec_cb, (void*)(Codec::h265), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
@@ -27,98 +35,101 @@ Fl_Menu_Item* UserInterface::nvencEncoderChoice = UserInterface::menu_encoderSel
 UserInterface::UserInterface() {
   { mainWindow = new Fl_Double_Window(1330, 610, "NDI RIST Encoder");
     mainWindow->user_data((void*)(this));
-    { inputGroup = new Fl_Group(35, 25, 235, 99, "Input");
-      { ndiSourceSelect = new Fl_Choice(104, 32, 140, 22, "NDI Source");
+    { topMenu = new Fl_Menu_Bar(0, 0, 1330, 20);
+      topMenu->menu(menu_topMenu);
+    } // Fl_Menu_Bar* topMenu
+    { inputGroup = new Fl_Group(35, 41, 235, 99, "Input");
+      { ndiSourceSelect = new Fl_Choice(104, 48, 140, 22, "NDI Source");
         ndiSourceSelect->down_box(FL_BORDER_BOX);
       } // Fl_Choice* ndiSourceSelect
-      { btnRefreshSources = new Fl_Button(64, 62, 185, 22, "Refresh Sources");
+      { btnRefreshSources = new Fl_Button(64, 78, 185, 22, "Refresh Sources");
         btnRefreshSources->callback((Fl_Callback*)refreshSources_cb);
       } // Fl_Button* btnRefreshSources
       inputGroup->end();
     } // Fl_Group* inputGroup
-    { encodeGroup = new Fl_Group(26, 143, 249, 97, "Encode");
-      { codecSelect = new Fl_Choice(140, 148, 92, 22, "Codec");
+    { encodeGroup = new Fl_Group(26, 154, 249, 97, "Encode");
+      { codecSelect = new Fl_Choice(140, 159, 92, 22, "Codec");
         codecSelect->down_box(FL_BORDER_BOX);
         codecSelect->menu(menu_codecSelect);
       } // Fl_Choice* codecSelect
-      { encoderSelect = new Fl_Choice(141, 173, 92, 22, "Encoder");
+      { encoderSelect = new Fl_Choice(141, 184, 92, 22, "Encoder");
         encoderSelect->down_box(FL_BORDER_BOX);
         encoderSelect->menu(menu_encoderSelect);
       } // Fl_Choice* encoderSelect
-      { encoderBitrateInput = new Fl_Input(141, 196, 90, 24, "Video Bitrate");
+      { encoderBitrateInput = new Fl_Input(141, 207, 90, 24, "Video Bitrate");
         encoderBitrateInput->callback((Fl_Callback*)encoder_bitrate_cb);
       } // Fl_Input* encoderBitrateInput
       encodeGroup->end();
     } // Fl_Group* encodeGroup
-    { Fl_Group* o = new Fl_Group(385, 33, 225, 157, "Output");
-      { ristAddressInput = new Fl_Input(390, 33, 218, 22, "RIST Address");
+    { Fl_Group* o = new Fl_Group(385, 41, 225, 157, "Output");
+      { ristAddressInput = new Fl_Input(390, 41, 218, 22, "RIST Address");
         ristAddressInput->callback((Fl_Callback*)rist_address_cb);
       } // Fl_Input* ristAddressInput
-      { rtmpAddressInput = new Fl_Input(390, 60, 218, 22, "Stream Server");
+      { rtmpAddressInput = new Fl_Input(390, 68, 218, 22, "RTMP Server");
         rtmpAddressInput->callback((Fl_Callback*)rtmp_address_cb);
       } // Fl_Input* rtmpAddressInput
-      { rtmpKeyInput = new Fl_Input(390, 88, 218, 22, "Stream Key");
+      { rtmpKeyInput = new Fl_Input(390, 96, 218, 22, "RTMP Key");
         rtmpKeyInput->callback((Fl_Callback*)rtmp_key_cb);
       } // Fl_Input* rtmpKeyInput
-      { useRpcInput = new Fl_Check_Button(390, 145, 25, 25, "Use server remote control.");
+      { useRpcInput = new Fl_Check_Button(390, 153, 25, 25, "Use server remote control.");
         useRpcInput->down_box(FL_DOWN_BOX);
         useRpcInput->callback((Fl_Callback*)use_rpc_cb);
       } // Fl_Check_Button* useRpcInput
-      { upscaleInput = new Fl_Check_Button(390, 165, 25, 25, "Upscale");
+      { upscaleInput = new Fl_Check_Button(390, 173, 25, 25, "Upscale");
         upscaleInput->down_box(FL_DOWN_BOX);
         upscaleInput->callback((Fl_Callback*)upscale_cb);
       } // Fl_Check_Button* upscaleInput
-      { reencodeBitrateInput = new Fl_Input(390, 115, 220, 25, "Reencode Bitrate");
+      { reencodeBitrateInput = new Fl_Input(390, 123, 220, 25, "Reencode Bitrate");
         reencodeBitrateInput->callback((Fl_Callback*)reencodeBitrate_cb);
       } // Fl_Input* reencodeBitrateInput
       o->end();
     } // Fl_Group* o
-    { Fl_Group* o = new Fl_Group(765, 28, 95, 149, "RIST Settings");
-      { ristBandwidthInput = new Fl_Input(765, 28, 92, 22, "Bandwidth");
+    { Fl_Group* o = new Fl_Group(765, 41, 95, 149, "RIST Settings");
+      { ristBandwidthInput = new Fl_Input(765, 41, 92, 22, "Bandwidth");
         ristBandwidthInput->callback((Fl_Callback*)rist_bandwidth_cb);
       } // Fl_Input* ristBandwidthInput
-      { ristBufferMinInput = new Fl_Input(765, 53, 92, 22, "Buffer Min");
+      { ristBufferMinInput = new Fl_Input(765, 66, 92, 22, "Buffer Min");
         ristBufferMinInput->callback((Fl_Callback*)rist_buffer_min_cb);
       } // Fl_Input* ristBufferMinInput
-      { ristBufferMaxInput = new Fl_Input(765, 78, 92, 22, "Buffer Max");
+      { ristBufferMaxInput = new Fl_Input(765, 91, 92, 22, "Buffer Max");
         ristBufferMaxInput->callback((Fl_Callback*)rist_buffer_max_cb);
       } // Fl_Input* ristBufferMaxInput
-      { ristRttMinInput = new Fl_Input(765, 103, 92, 22, "RTT Min");
+      { ristRttMinInput = new Fl_Input(765, 116, 92, 22, "RTT Min");
         ristRttMinInput->callback((Fl_Callback*)rist_rtt_min_cb);
       } // Fl_Input* ristRttMinInput
-      { ristRttMaxInput = new Fl_Input(765, 128, 92, 22, "RTT Max");
+      { ristRttMaxInput = new Fl_Input(765, 141, 92, 22, "RTT Max");
         ristRttMaxInput->callback((Fl_Callback*)rist_rtt_max_cb);
       } // Fl_Input* ristRttMaxInput
-      { ristReorderBufferInput = new Fl_Input(765, 153, 92, 22, "Reorder Buffer");
+      { ristReorderBufferInput = new Fl_Input(765, 166, 92, 22, "Reorder Buffer");
         ristReorderBufferInput->callback((Fl_Callback*)rist_reorder_buffer_cb);
       } // Fl_Input* ristReorderBufferInput
       o->end();
     } // Fl_Group* o
-    { btnStartStream = new Fl_Button(610, 203, 218, 22, "Start Stream");
+    { btnStartStream = new Fl_Button(610, 214, 218, 22, "Start Stream");
       btnStartStream->callback((Fl_Callback*)startStream_cb);
     } // Fl_Button* btnStartStream
-    { btnStopStream = new Fl_Button(335, 203, 218, 22, "Stop Stream");
+    { btnStopStream = new Fl_Button(335, 214, 218, 22, "Stop Stream");
       btnStopStream->callback((Fl_Callback*)stopStream_cb);
       btnStopStream->deactivate();
     } // Fl_Button* btnStopStream
-    { statsGroup = new Fl_Group(1040, 25, 266, 200, "Stats");
-      { bandwidthOutput = new Fl_Output(1135, 50, 165, 24, "Bandwidth");
+    { statsGroup = new Fl_Group(1040, 41, 266, 200, "Stats");
+      { bandwidthOutput = new Fl_Output(1135, 66, 165, 24, "Bandwidth");
       } // Fl_Output* bandwidthOutput
-      { linkQualityOutput = new Fl_Output(1135, 76, 165, 24, "Link Quality");
+      { linkQualityOutput = new Fl_Output(1135, 92, 165, 24, "Link Quality");
       } // Fl_Output* linkQualityOutput
-      { retransmittedPacketsOutput = new Fl_Output(1135, 101, 165, 24, "Retransmitted Packets");
+      { retransmittedPacketsOutput = new Fl_Output(1135, 117, 165, 24, "Retransmitted Packets");
       } // Fl_Output* retransmittedPacketsOutput
-      { rttOutput = new Fl_Output(1135, 151, 165, 24, "RTT");
+      { rttOutput = new Fl_Output(1135, 167, 165, 24, "RTT");
       } // Fl_Output* rttOutput
-      { totalPacketsOutput = new Fl_Output(1135, 126, 165, 24, "Packets");
+      { totalPacketsOutput = new Fl_Output(1135, 142, 165, 24, "Packets");
       } // Fl_Output* totalPacketsOutput
-      { encodeBitrateOutput = new Fl_Output(1135, 201, 165, 24, "Encode Bitrate");
+      { encodeBitrateOutput = new Fl_Output(1135, 217, 165, 24, "Encode Bitrate");
       } // Fl_Output* encodeBitrateOutput
       statsGroup->end();
     } // Fl_Group* statsGroup
-    { logDisplay = new Fl_Text_Display(21, 246, 1294, 168, "Log");
+    { logDisplay = new Fl_Text_Display(21, 257, 1294, 168, "Log");
     } // Fl_Text_Display* logDisplay
-    { ristLogDisplay = new Fl_Text_Display(22, 431, 1293, 163, "RIST Log");
+    { ristLogDisplay = new Fl_Text_Display(22, 442, 1293, 163, "RIST Log");
     } // Fl_Text_Display* ristLogDisplay
     mainWindow->end();
     mainWindow->resizable(mainWindow);
