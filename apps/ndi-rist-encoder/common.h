@@ -23,14 +23,16 @@ struct Config
   std::string transport = "m2ts";
   std::string bitrate = "4300";
   std::string rist_output_address = "127.0.0.1:5000";
+  int rist_output_streams = 1;
   std::string rist_output_buffer_min = "245";
   std::string rist_output_buffer_max = "5000";
   std::string rist_output_rtt_min = "40";
   std::string rist_output_rtt_max = "500";
   std::string rist_output_reorder_buffer = "240";
   std::string rist_output_bandwidth = "6000";
-  std::string rtmp_address = "sydney.restream.io/live";
+  std::string rtmp_address = "rtmp://sydney.restream.io/live";
   std::string rtmp_key = "";
+  std::string reencode_bitrate = "18000";
   uint16_t use_rpc_control = 1;
   bool upscale = true;
 };

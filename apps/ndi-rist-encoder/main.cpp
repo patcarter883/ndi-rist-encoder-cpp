@@ -4,6 +4,12 @@
 #include <chrono>
 #include <future>
 #include <thread>
+#include <vector>
+
+#include <fstream>
+#include <filesystem>
+#include <windows.h>
+#include <shlobj.h>
 
 #include <FL/Fl.H>
 #include <fmt/core.h>
@@ -20,6 +26,7 @@ using homer6::Url;
 using std::string;
 
 #include "encode.h"
+#include <toml++/toml.h>
 
 void startStream();
 void stopStream();
@@ -33,10 +40,14 @@ void logAppend(std::string logMessage);
 void ristLogAppend(std::string logMessage);
 int ristLog(void* arg, enum rist_log_level, const char* msg);
 
+void readConfig();
+void writeConfig();
+
 struct RpcData
 {
   std::string bitrate;
   std::string rist_output_address;
+  int rist_output_streams;
   std::string rist_output_buffer_min;
   std::string rist_output_buffer_max;
   std::string rist_output_rtt_min;
@@ -45,10 +56,25 @@ struct RpcData
   std::string rist_output_bandwidth;
   std::string rtmp_address;
   std::string rtmp_key;
+  std::string reencode_bitrate;
   int codec;
   bool upscale;
-  MSGPACK_DEFINE_ARRAY(bitrate,   rist_output_address,   rist_output_buffer_min,   rist_output_buffer_max,   rist_output_rtt_min,   rist_output_rtt_max,   rist_output_reorder_buffer,   rist_output_bandwidth,   rtmp_address,   rtmp_key, codec, upscale);
+  MSGPACK_DEFINE_ARRAY(bitrate,
+                       rist_output_address,
+                       rist_output_streams
+                       rist_output_buffer_min,
+                       rist_output_buffer_max,
+                       rist_output_rtt_min,
+                       rist_output_rtt_max,
+                       rist_output_reorder_buffer,
+                       rist_output_bandwidth,
+                       rtmp_address,
+                       rtmp_key,
+                       reencode_bitrate,
+                       codec,
+                       upscale);
 };
+
 struct App
 {
   UserInterface* ui = new UserInterface;
@@ -71,6 +97,14 @@ struct App
   std::future<void> gstreamer_sink_future;
 };
 
+struct cumulativeStats
+{
+    std::vector<int> bandwidth = { };
+    std::vector<int> retransmittedPackets = { };
+    std::vector<int> totalPackets = { };
+    std::vector<int> encodeBitrate = { };
+};
+
 namespace nre
 {
 /* Globals */
@@ -82,11 +116,110 @@ Encode* encoder = nullptr;
 
 using namespace nre;
 
-void initUi()
+std::filesystem::path pathToConfigFile()
+{
+  WCHAR szPath[MAX_PATH];
+  if (SHGetFolderPathAndSubDirW(NULL,
+                                CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE,
+                                NULL,
+                                SHGFP_TYPE_CURRENT,
+                                L"NDI_RIST_Encoder",
+                                szPath)
+      != S_OK)
+  {
+    throw;
+  }
+  return std::filesystem::path(szPath) / L"config.toml";
+
+  /* alternatively:
+
+  if (SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, SHGFP_TYPE_CURRENT,
+  szPath) != S_OK) throw ...;
+
+  fs::path folder = fs::path(szPath) / L"MyApp";
+  fs::create_directory(folder);
+
+  return folder / L"value.dat";
+  */
+}
+
+void readConfig()
+{
+  try {
+    toml::table tbl = toml::parse_file(pathToConfigFile().c_str());
+
+    config.codec =
+        static_cast<Codec>(tbl["encode"]["codec"].value<int>().value_or(0));
+    config.encoder =
+        static_cast<Encoder>(tbl["encode"]["encoder"].value<int>().value_or(0));
+    config.bitrate = tbl["encode"]["bitrate"].value<std::string>().value_or("");
+    config.rist_output_address =
+        tbl["rist_output"]["address"].value<std::string>().value_or("");
+    config.rist_output_streams = tbl["rist_output"]["streams"].value<int>().value_or(1);
+    config.rist_output_buffer_min =
+        tbl["rist_output"]["buffer_min"].value<std::string>().value_or("");
+    config.rist_output_buffer_max =
+        tbl["rist_output"]["buffer_max"].value<std::string>().value_or("");
+    config.rist_output_rtt_min =
+        tbl["rist_output"]["rtt_min"].value<std::string>().value_or("");
+    config.rist_output_rtt_max =
+        tbl["rist_output"]["rtt_max"].value<std::string>().value_or("");
+    config.rist_output_reorder_buffer =
+        tbl["rist_output"]["reorder_buffer"].value<std::string>().value_or("");
+    config.rist_output_bandwidth =
+        tbl["rist_output"]["bandwidth"].value<std::string>().value_or("");
+    config.rtmp_address =
+        tbl["restream_output"]["address"].value<std::string>().value_or("");
+    config.rtmp_key =
+        tbl["restream_output"]["key"].value<std::string>().value_or("");
+    config.reencode_bitrate = tbl["restream_output"]["reencode_bitrate"]
+                                  .value<std::string>()
+                                  .value_or("");
+    config.use_rpc_control =
+        tbl["restream_output"]["rpc_control"].value<int>().value_or(0);
+    config.upscale =
+        tbl["restream_output"]["upscale"].value<bool>().value_or(false);
+  }
+  catch (const toml::parse_error& err) {
+    
+  }
+}
+
+void writeConfig()
+{
+  std::ofstream write_file(pathToConfigFile());
+  if (write_file.is_open()) {
+    auto tbl = toml::table {
+        {"encode",
+         toml::table {{"codec", config.codec},
+                      {"encoder", config.encoder},
+                      {"bitrate", config.bitrate}}},
+        {"rist_output",
+         toml::table {{"address", config.rist_output_address},
+                      {"streams", config.rist_output_streams},
+                      {"buffer_min", config.rist_output_buffer_min},
+                      {"buffer_max", config.rist_output_buffer_max},
+                      {"rtt_min", config.rist_output_rtt_min},
+                      {"rtt_max", config.rist_output_rtt_max},
+                      {"reorder_buffer", config.rist_output_reorder_buffer},
+                      {"bandwidth", config.rist_output_bandwidth}}},
+        {"restream_output",
+         toml::table {{"address", config.rtmp_address},
+                      {"key", config.rtmp_key},
+                      {"reencode_bitrate", config.reencode_bitrate},
+                      {"rpc_control", config.use_rpc_control},
+                      {"upscale", config.upscale}}}};
+    write_file << tbl;
+    write_file.close();
+  }
+}
+
+void setUiFromConfig(void* v)
 {
   app.ui->logDisplay->buffer(app.log_buff);
   app.ui->ristLogDisplay->buffer(app.rist_log_buff);
   app.ui->ristAddressInput->value(config.rist_output_address.c_str());
+  app.ui->ristStreamCount->value(std::to_string(config.rist_output_streams).c_str());
   app.ui->ristBandwidthInput->value(config.rist_output_bandwidth.c_str());
   app.ui->ristBufferMaxInput->value(config.rist_output_buffer_max.c_str());
   app.ui->ristBufferMinInput->value(config.rist_output_buffer_min.c_str());
@@ -96,6 +229,15 @@ void initUi()
       config.rist_output_reorder_buffer.c_str());
   app.ui->encoderBitrateInput->value(config.bitrate.c_str());
   app.ui->useRpcInput->value(config.use_rpc_control);
+  app.ui->upscaleInput->value(config.upscale);
+  app.ui->reencodeBitrateInput->value(config.reencode_bitrate.c_str());
+  app.ui->rtmpAddressInput->value(config.rtmp_address.c_str());
+  app.ui->rtmpKeyInput->value(config.rtmp_key.c_str());
+}
+
+void initUi()
+{
+  setUiFromConfig(nullptr);
   app.ui->show(NULL, NULL);
 }
 
@@ -106,6 +248,7 @@ int main(int argc, char** argv)
 
   /* init GStreamer */
   gst_init(&argc, &argv);
+  readConfig();
 
   Fl::lock();
   initUi();
@@ -165,11 +308,13 @@ void startStream()
  encoder = new Encode(&config);
  encoder->log_func = logAppend;
   app.current_bitrate = std::stoi(config.bitrate);
+  Url url{ fmt::format("rist://{}", config.rist_output_address) };
   if (config.use_rpc_control) {
 
     RpcData rpcData;
       rpcData.bitrate = config.bitrate;
       rpcData.rist_output_address = config.rist_output_address;
+      rpcData.rist_output_streams = config.rist_output_streams;
       rpcData.rist_output_buffer_min = config.rist_output_buffer_min;
       rpcData.rist_output_buffer_max = config.rist_output_buffer_max;
       rpcData.rist_output_rtt_min = config.rist_output_rtt_min;
@@ -180,32 +325,61 @@ void startStream()
       rpcData.rtmp_key = config.rtmp_key;
       rpcData.codec = static_cast<int>(config.codec);
       rpcData.upscale = config.upscale;
-    
+      rpcData.reencode_bitrate = config.reencode_bitrate;
 
     try {
-      Url url {fmt::format("rist://{}", config.rist_output_address)};
+        std::future<void> future = std::async(
+            std::launch::async,
+          [rpcData, url]()
+            {
+              
+              rpc::client client(url.getHost(), app.rpc_port);
+              client.call("start", rpcData);
+            });
 
-      rpc::client client(url.getHost(), app.rpc_port);
-      auto result = client.call(
-          "start",
-          rpcData);
+        std::future_status status;
+
+        using namespace std::chrono_literals;
+        switch (status = future.wait_for(5s); status) {
+          case std::future_status::timeout:
+            logAppend("Server start timed out.");
+            break;
+          case std::future_status::ready:
+            logAppend("Server pipeline started.");
+            break;
+        }
     } catch (const std::exception& e) {
       logAppend(e.what());
     }
   }
   app.is_running = true;
   encoder->run_encode_thread();
-  string rist_output_url = fmt::format(
-      "rist://"
-      "{}?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&"
-      "reorder-buffer={}",
-      config.rist_output_address,
-      config.rist_output_bandwidth,
-      config.rist_output_buffer_min,
-      config.rist_output_buffer_max,
-      config.rist_output_rtt_min,
-      config.rist_output_rtt_max,
-      config.rist_output_reorder_buffer);
+
+
+  string rist_output_url;
+
+      for (int i = 0; i < config.rist_output_streams; i = i + 1)
+      {
+          rist_output_url.append(fmt::format(
+              "rist://"
+              "{}:{}?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&"
+              "reorder-buffer={}",
+              url.getHost(),
+              url.getPort() + (2 * i),
+              config.rist_output_bandwidth,
+              config.rist_output_buffer_min,
+              config.rist_output_buffer_max,
+              config.rist_output_rtt_min,
+              config.rist_output_rtt_max,
+              config.rist_output_reorder_buffer));
+
+          if (config.rist_output_streams > 1 && i < (config.rist_output_streams - 1))
+          {
+              rist_output_url.append(",");
+          }
+      }
+
+
       string rist_input_url = "rtp://@127.0.0.1:6000";
   app.transport_thread_future = std::async(std::launch::async,
                                            rist_sender::run_rist_sender,
@@ -230,11 +404,6 @@ void stopStream()
   Fl::lock();
   app.ui->btnStopStream->deactivate();
   Fl::unlock();
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-  Fl::lock();
-  app.ui->btnStartStream->activate();
-  Fl::unlock();
-  Fl::awake();
   delete encoder;
 
   if (config.use_rpc_control) {
@@ -251,7 +420,7 @@ void stopStream()
       std::future_status status;
 
       using namespace std::chrono_literals;
-      switch (status = future.wait_for(1s); status) {
+      switch (status = future.wait_for(5s); status) {
         case std::future_status::timeout:
           logAppend("Server stop timed out.");
           break;
@@ -264,6 +433,11 @@ void stopStream()
       logAppend(e.what());
     }
   }
+
+  Fl::lock();
+  app.ui->btnStartStream->activate();
+  Fl::unlock();
+  Fl::awake();
 }
 
 void ristStatistics_cb(void* msgPtr)
@@ -324,28 +498,9 @@ void gotRistStatistics(const rist_stats& statistics)
   Fl::awake(ristStatistics_cb, p_statistics);
 }
 
-void* previewNDISource()
-{
-  // string pipelineString = fmt::format(
-  //     "ndisrc ndi-name=\"{}\" do-timestamp=true ! ndisrcdemux name=demux   "
-  //     "demux.video ! queue ! videoconvert ! autovideosink  demux.audio ! queue "
-  //     "! audioconvert ! autoaudiosink",
-  //     config.ndi_input_name);
-  // parsePipeline(pipelineString);
-  // playPipeline();
-
-  return 0L;
-}
-
 void ndi_source_select_cb(Fl_Widget* o, void* v)
 {
   config.ndi_input_name = (char*)v;
-}
-
-void preview_cb(Fl_Button* o, void* v)
-{
-  std::thread thisPreviewThread(previewNDISource);
-  thisPreviewThread.detach();
 }
 
 void startStream_cb(Fl_Button* o, void* v)
@@ -425,11 +580,36 @@ void rist_reorder_buffer_cb(Fl_Input* o, void* v)
 void encoder_bitrate_cb(Fl_Input* o, void* v)
 {
   config.bitrate = o->value();
+
+  if (app.is_playing) {
+    encoder->set_encode_bitrate(std::stoi(config.bitrate));
+  }
 }
 
 void use_rpc_cb(Fl_Check_Button* o, void* v)
 {
   config.use_rpc_control = o->value();
+}
+
+void upscale_cb(Fl_Check_Button* o, void* v)
+{
+  config.upscale = o->value();
+}
+
+void reencodeBitrate_cb(Fl_Input* o, void* v)
+{
+  config.reencode_bitrate = o->value();
+}
+
+void save_settings_cb(Fl_Menu_* o, void* v)
+{
+  writeConfig();
+}
+
+void load_settings_cb(Fl_Menu_* o, void* v)
+{
+  readConfig();
+  Fl::awake(setUiFromConfig, v);
 }
 
 void* findNdiDevices(void* p)

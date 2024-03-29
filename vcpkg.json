@@ -1,13 +1,13 @@
 {
   "name": "ndi-rist",
   "version-semver": "0.1.0",
-  "dependencies": [
-    {
-      "name": "fmt",
-      "version>=": "10.1.0"
-    },
-    "fltk"
-  ],
+    "dependencies": [
+        {
+            "name": "fmt",
+            "version>=": "10.1.0"
+        },
+        "fltk"
+    ],
   "default-features": [],
   "features": {
     "test": {

@@ -139,21 +139,21 @@ void Encode::pipeline_build_amd_av1_encoder() {
 void Encode::pipeline_build_qsv_h264_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("qsvh264enc name=vidEncoder  bitrate={} rate-control=cbr "
-          "target-usage=1 ! h264parse "),
+          "target-usage=1 ! video/x-h264,framerate=60/1  ! h264parse "),
           this->config->bitrate);
 }
 
 void Encode::pipeline_build_qsv_h265_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("qsvh265enc name=vidEncoder bitrate={} rate-control=cbr "
-          "target-usage=1 ! h265parse "),
+          "target-usage=1 ! video/x-h265,framerate=60/1  ! h265parse "),
           this->config->bitrate);
 }
 
 void Encode::pipeline_build_qsv_av1_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("qsvav1enc name=vidEncoder bitrate={} rate-control=cbr "
-          "target-usage=1 ! av1parse "),
+          "target-usage=1 gop-size=120 ! video/x-av1,framerate=60/1 ! av1parse "),
           this->config->bitrate);
 }
 

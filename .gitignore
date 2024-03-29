@@ -10,3 +10,5 @@ CMakeLists.txt.user
 CMakeUserPresets.json
 compile_commands.json
 venv/
+vcpkg/
+vcpkg_installed/

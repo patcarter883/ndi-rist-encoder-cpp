@@ -54,7 +54,7 @@ add_library(ristreceiver STATIC
         )
 target_link_libraries(ristreceiver PRIVATE librist)
 IF (WIN32)
-        target_compile_definitions(ristreceiver PRIVATE WIN32_LEAN_AND_MEAN)
+        target_compile_definitions(ristreceiver PRIVATE WIN32_LEAN_AND_MEAN __STDC_FORMAT_MACROS)
         target_link_libraries(ristreceiver PRIVATE iphlpapi wsock32 ws2_32 Threads::Threads)
         target_compile_definitions(ristreceiver PRIVATE _CRT_SECURE_NO_WARNINGS)
 ENDIF()
