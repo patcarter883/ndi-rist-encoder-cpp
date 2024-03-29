@@ -140,7 +140,7 @@ void pipeline_build_sink()
   else
   {
     app.pipeline_str += fmt::format(
-      "flvmux streamable=true name=mux ! queue ! rtmpsink live=true location='{}/{}'"
+      "flvmux streamable=true name=mux ! queue ! rtmpsink location='{}/{} live=true'"
       " name=rtmpSink multiqueue name=outq ", config.stream_output_address.toString(), config.streamid);
   }
   
@@ -165,7 +165,7 @@ void pipeline_build_video_decode()
   switch (config.codec)
   {
   case Codec::av1:
-    app.pipeline_str += " demux. ! av1parse ! queue ! nvav1dec !";
+    app.pipeline_str += " demux. ! av1parse ! queue ! nvav1dec ! capssetter caps=video/x-raw(memory:CUDAMemory),framerate=60/1 !";
     break;
 
   case Codec::h265:
