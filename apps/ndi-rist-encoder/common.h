@@ -23,6 +23,7 @@ struct Config
   std::string transport = "m2ts";
   std::string bitrate = "4300";
   std::string rist_output_address = "127.0.0.1:5000";
+  int rist_output_streams = 1;
   std::string rist_output_buffer_min = "245";
   std::string rist_output_buffer_max = "5000";
   std::string rist_output_rtt_min = "40";

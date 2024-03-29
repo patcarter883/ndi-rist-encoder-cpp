@@ -4,6 +4,7 @@
 #include <chrono>
 #include <future>
 #include <thread>
+#include <vector>
 
 #include <fstream>
 #include <filesystem>
@@ -46,6 +47,7 @@ struct RpcData
 {
   std::string bitrate;
   std::string rist_output_address;
+  int rist_output_streams;
   std::string rist_output_buffer_min;
   std::string rist_output_buffer_max;
   std::string rist_output_rtt_min;
@@ -59,6 +61,7 @@ struct RpcData
   bool upscale;
   MSGPACK_DEFINE_ARRAY(bitrate,
                        rist_output_address,
+                       rist_output_streams
                        rist_output_buffer_min,
                        rist_output_buffer_max,
                        rist_output_rtt_min,
@@ -71,6 +74,7 @@ struct RpcData
                        codec,
                        upscale);
 };
+
 struct App
 {
   UserInterface* ui = new UserInterface;
@@ -91,6 +95,14 @@ struct App
 
   std::future<int> transport_thread_future;
   std::future<void> gstreamer_sink_future;
+};
+
+struct cumulativeStats
+{
+    std::vector<int> bandwidth = { };
+    std::vector<int> retransmittedPackets = { };
+    std::vector<int> totalPackets = { };
+    std::vector<int> encodeBitrate = { };
 };
 
 namespace nre
@@ -143,6 +155,7 @@ void readConfig()
     config.bitrate = tbl["encode"]["bitrate"].value<std::string>().value_or("");
     config.rist_output_address =
         tbl["rist_output"]["address"].value<std::string>().value_or("");
+    config.rist_output_streams = tbl["rist_output"]["streams"].value<int>().value_or(1);
     config.rist_output_buffer_min =
         tbl["rist_output"]["buffer_min"].value<std::string>().value_or("");
     config.rist_output_buffer_max =
@@ -183,6 +196,7 @@ void writeConfig()
                       {"bitrate", config.bitrate}}},
         {"rist_output",
          toml::table {{"address", config.rist_output_address},
+                      {"streams", config.rist_output_streams},
                       {"buffer_min", config.rist_output_buffer_min},
                       {"buffer_max", config.rist_output_buffer_max},
                       {"rtt_min", config.rist_output_rtt_min},
@@ -205,7 +219,7 @@ void setUiFromConfig(void* v)
   app.ui->logDisplay->buffer(app.log_buff);
   app.ui->ristLogDisplay->buffer(app.rist_log_buff);
   app.ui->ristAddressInput->value(config.rist_output_address.c_str());
-  app.ui->ristAddressInput->value(config.rist_output_address.c_str());
+  app.ui->ristStreamCount->value(std::to_string(config.rist_output_streams).c_str());
   app.ui->ristBandwidthInput->value(config.rist_output_bandwidth.c_str());
   app.ui->ristBufferMaxInput->value(config.rist_output_buffer_max.c_str());
   app.ui->ristBufferMinInput->value(config.rist_output_buffer_min.c_str());
@@ -294,11 +308,13 @@ void startStream()
  encoder = new Encode(&config);
  encoder->log_func = logAppend;
   app.current_bitrate = std::stoi(config.bitrate);
+  Url url{ fmt::format("rist://{}", config.rist_output_address) };
   if (config.use_rpc_control) {
 
     RpcData rpcData;
       rpcData.bitrate = config.bitrate;
       rpcData.rist_output_address = config.rist_output_address;
+      rpcData.rist_output_streams = config.rist_output_streams;
       rpcData.rist_output_buffer_min = config.rist_output_buffer_min;
       rpcData.rist_output_buffer_max = config.rist_output_buffer_max;
       rpcData.rist_output_rtt_min = config.rist_output_rtt_min;
@@ -310,14 +326,13 @@ void startStream()
       rpcData.codec = static_cast<int>(config.codec);
       rpcData.upscale = config.upscale;
       rpcData.reencode_bitrate = config.reencode_bitrate;
-    
 
     try {
         std::future<void> future = std::async(
             std::launch::async,
-          [rpcData]()
+          [rpcData, url]()
             {
-              Url url {fmt::format("rist://{}", config.rist_output_address)};
+              
               rpc::client client(url.getHost(), app.rpc_port);
               client.call("start", rpcData);
             });
@@ -339,17 +354,32 @@ void startStream()
   }
   app.is_running = true;
   encoder->run_encode_thread();
-  string rist_output_url = fmt::format(
-      "rist://"
-      "{}?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&"
-      "reorder-buffer={}",
-      config.rist_output_address,
-      config.rist_output_bandwidth,
-      config.rist_output_buffer_min,
-      config.rist_output_buffer_max,
-      config.rist_output_rtt_min,
-      config.rist_output_rtt_max,
-      config.rist_output_reorder_buffer);
+
+
+  string rist_output_url;
+
+      for (int i = 0; i < config.rist_output_streams; i = i + 1)
+      {
+          rist_output_url.append(fmt::format(
+              "rist://"
+              "{}:{}?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&"
+              "reorder-buffer={}",
+              url.getHost(),
+              url.getPort() + (2 * i),
+              config.rist_output_bandwidth,
+              config.rist_output_buffer_min,
+              config.rist_output_buffer_max,
+              config.rist_output_rtt_min,
+              config.rist_output_rtt_max,
+              config.rist_output_reorder_buffer));
+
+          if (config.rist_output_streams > 1 && i < (config.rist_output_streams - 1))
+          {
+              rist_output_url.append(",");
+          }
+      }
+
+
       string rist_input_url = "rtp://@127.0.0.1:6000";
   app.transport_thread_future = std::async(std::launch::async,
                                            rist_sender::run_rist_sender,

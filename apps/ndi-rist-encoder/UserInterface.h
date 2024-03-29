@@ -23,6 +23,7 @@ extern void rtmp_key_cb(Fl_Input*, void*);
 extern void use_rpc_cb(Fl_Check_Button*, void*);
 extern void upscale_cb(Fl_Check_Button*, void*);
 extern void reencodeBitrate_cb(Fl_Input*, void*);
+extern void rist_streams_cb(Fl_Input*, void*);
 extern void rist_bandwidth_cb(Fl_Input*, void*);
 extern void rist_buffer_min_cb(Fl_Input*, void*);
 extern void rist_buffer_max_cb(Fl_Input*, void*);
@@ -64,6 +65,7 @@ public:
   Fl_Check_Button *useRpcInput;
   Fl_Check_Button *upscaleInput;
   Fl_Input *reencodeBitrateInput;
+  Fl_Input *ristStreamCount;
   Fl_Input *ristBandwidthInput;
   Fl_Input *ristBufferMinInput;
   Fl_Input *ristBufferMaxInput;
@@ -79,6 +81,11 @@ public:
   Fl_Output *rttOutput;
   Fl_Output *totalPacketsOutput;
   Fl_Output *encodeBitrateOutput;
+  Fl_Group *totalStatsGroup;
+  Fl_Output *cumulativeBandwidthOutput;
+  Fl_Output *cumulativeRetransmittedPacketsOutput;
+  Fl_Output *cumulativeTotalPacketsOutput;
+  Fl_Output *cumulativeEncodeBitrateOutput;
   Fl_Text_Display *logDisplay;
   Fl_Text_Display *ristLogDisplay;
   void show(int argc, char **argv);

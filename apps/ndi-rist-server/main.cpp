@@ -64,32 +64,34 @@ struct BufferDataStruct
 
 struct RpcData
 {
-  std::string bitrate;
-  std::string rist_output_address;
-  std::string rist_output_buffer_min;
-  std::string rist_output_buffer_max;
-  std::string rist_output_rtt_min;
-  std::string rist_output_rtt_max;
-  std::string rist_output_reorder_buffer;
-  std::string rist_output_bandwidth;
-  std::string rtmp_address;
-  std::string rtmp_key;
-  std::string reencode_bitrate;
-  int codec;
-  bool upscale;
-  MSGPACK_DEFINE_ARRAY(bitrate,
-                       rist_output_address,
-                       rist_output_buffer_min,
-                       rist_output_buffer_max,
-                       rist_output_rtt_min,
-                       rist_output_rtt_max,
-                       rist_output_reorder_buffer,
-                       rist_output_bandwidth,
-                       rtmp_address,
-                       rtmp_key,
-                       reencode_bitrate,
-                       codec,
-                       upscale);
+    std::string bitrate;
+    std::string rist_output_address;
+    int rist_output_streams;
+    std::string rist_output_buffer_min;
+    std::string rist_output_buffer_max;
+    std::string rist_output_rtt_min;
+    std::string rist_output_rtt_max;
+    std::string rist_output_reorder_buffer;
+    std::string rist_output_bandwidth;
+    std::string rtmp_address;
+    std::string rtmp_key;
+    std::string reencode_bitrate;
+    int codec;
+    bool upscale;
+    MSGPACK_DEFINE_ARRAY(bitrate,
+        rist_output_address,
+        rist_output_streams
+        rist_output_buffer_min,
+        rist_output_buffer_max,
+        rist_output_rtt_min,
+        rist_output_rtt_max,
+        rist_output_reorder_buffer,
+        rist_output_bandwidth,
+        rtmp_address,
+        rtmp_key,
+        reencode_bitrate,
+        codec,
+        upscale);
 };
 
 void log();
@@ -273,7 +275,7 @@ void stop_gstreamer()
   }
 }
 
-void start_rist(string rist_input_url, string rist_output_url)
+void start_rist(string rist_input_url, string rist_output_url, int rist_streams)
 {
 
       app.rist_receive_future = std::async(std::launch::async, rist_receiver::run_rist_receiver,
@@ -360,17 +362,31 @@ void rpc_call_start(RpcData data)
   config.upscale = data.upscale;
   config.reencode_bitrate = data.reencode_bitrate;
 
-    string rist_input_url = fmt::format(
-      "rist://@[::]:5000"
-      "?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&"
-      "reorder-buffer={}",
-      data.rist_output_bandwidth,
-      data.rist_output_buffer_min,
-      data.rist_output_buffer_max,
-      data.rist_output_rtt_min,
-      data.rist_output_rtt_max,
-      data.rist_output_reorder_buffer);
-      string rist_output_url = fmt::format("rtp://@127.0.0.1:{}", app.udp_internal_port);
+  Url url{ fmt::format("rist://{}", data.rist_output_address) };
+
+  string rist_input_url;
+
+  for (int i = 0; i < data.rist_output_streams; i = i + 1)
+  {
+      rist_input_url.append(fmt::format(
+          "rist://@[::]:{}"
+          "?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&"
+          "reorder-buffer={}",
+          url.getPort() + (2 * i),
+          data.rist_output_bandwidth,
+          data.rist_output_buffer_min,
+          data.rist_output_buffer_max,
+          data.rist_output_rtt_min,
+          data.rist_output_rtt_max,
+          data.rist_output_reorder_buffer));
+
+      if (data.rist_output_streams > 1 && i < (data.rist_output_streams - 1))
+      {
+          rist_input_url.append(",");
+      }
+  }
+
+  string rist_output_url = fmt::format("rtp://@127.0.0.1:{}", app.udp_internal_port);
 
   app.is_playing = true;
   start_gstreamer();
