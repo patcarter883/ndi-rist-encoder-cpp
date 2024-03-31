@@ -49,11 +49,11 @@ struct App
 struct Config
 {
   std::string rist_input_address = "";
-  Url stream_output_address;
   std::string streamid = "";
   Codec codec = Codec::h264;
   bool upscale = true;
   std::string reencode_bitrate = "";
+  std::vector<std::array<std::string, 2>> stream_destinations;
 };
 
 struct BufferDataStruct
@@ -78,20 +78,22 @@ struct RpcData
     std::string reencode_bitrate;
     int codec;
     bool upscale;
-    MSGPACK_DEFINE_ARRAY(bitrate,
-        rist_output_address,
-        rist_output_streams
-        rist_output_buffer_min,
-        rist_output_buffer_max,
-        rist_output_rtt_min,
-        rist_output_rtt_max,
-        rist_output_reorder_buffer,
-        rist_output_bandwidth,
-        rtmp_address,
-        rtmp_key,
-        reencode_bitrate,
-        codec,
-        upscale);
+    std::vector<std::array<std::string, 2>> stream_destinations;
+MSGPACK_DEFINE_ARRAY(bitrate,
+                     rist_output_address,
+                     rist_output_streams,
+                     rist_output_buffer_min,
+                     rist_output_buffer_max,
+                     rist_output_rtt_min,
+                     rist_output_rtt_max,
+                     rist_output_reorder_buffer,
+                     rist_output_bandwidth,
+                     rtmp_address,
+                     rtmp_key,
+                     reencode_bitrate,
+                     codec,
+                     upscale,
+                     stream_destinations);
 };
 
 void log();
@@ -133,20 +135,46 @@ void log(string message)
 void pipeline_build_sink()
 {
 
-  if (config.stream_output_address.getScheme() == "srt")
-  {
-    app.pipeline_str += fmt::format(
-      "mpegtsmux name=mux ! rtpmp2tpay ! queue ! srtsink uri={}"
-      " mode=caller wait-for-connection=false streamid={} name=srtSink multiqueue name=outq ", config.stream_output_address.toString(), config.streamid);
+  bool hasTS = false;
+  bool hasFLV = false;
+
+  log("Building pipeline sinks.");
+
+  app.pipeline_str += "tee name=vtee  tee name=atee  multiqueue name=outq  ";
+
+  for (auto& element : config.stream_destinations) {
+    log(element[0]);
+    Url url{ element[0] };
+    auto streamKey = element[1];
+
+    if (url.getScheme() == "srt")
+    {
+      hasTS = true;
+
+      app.pipeline_str += fmt::format(
+        "tstee. ! queue ! srtsink uri={} mode=caller wait-for-connection=false streamid={}  ", url.toString(), streamKey);
+    }
+    else if (url.getScheme() == "rtmp")
+    {
+      hasFLV = true;
+
+      app.pipeline_str += fmt::format(
+        "flvtee. ! queue ! rtmpsink location='{}/{} live=true'  ", url.toString(), streamKey);
+    }
+
   }
-  else
+
+  if (hasTS)
   {
-    app.pipeline_str += fmt::format(
-      "flvmux streamable=true name=mux ! queue ! rtmpsink live=true location='{}/{}'"
-      " name=rtmpSink multiqueue name=outq ", config.stream_output_address.toString(), config.streamid);
+    app.pipeline_str += "mpegtsmux name=mpegtsmux ! rtpmp2tpay ! tee name=tstee vtee. ! queue ! mpegtsmux. atee. ! queue ! mpegtsmux.  ";
   }
-  
+
+  if (hasFLV)
+  {
+    app.pipeline_str += "h264parse config-interval=-1 name=flvmuxvideo ! video/x-h264,framerate=60/1,profile=high,stream-format=avc ! flvmux streamable=true name=flvmuxaudio ! tee name=flvtee vtee. ! queue ! flvmuxvideo. atee. ! queue ! flvmuxaudio.audio  ";
+  }
 }
+  
 
 void pipeline_build_source()
 {
@@ -159,7 +187,7 @@ void pipeline_build_audio_remux()
 {
   app.pipeline_str +=
       " demux. ! aacparse ! queue max-size-time=5000000000 ! outq.sink_1 "
-      "outq.src_1 ! mux.";
+      "outq.src_1 ! atee.";
 }
 
 void pipeline_build_video_decode()
@@ -167,7 +195,7 @@ void pipeline_build_video_decode()
   switch (config.codec)
   {
   case Codec::av1:
-    app.pipeline_str += " demux. ! av1parse ! queue ! nvav1dec !";
+    app.pipeline_str += " demux. ! av1parse ! queue ! nvav1dec ! capssetter caps=video/x-raw(memory:CUDAMemory),framerate=60/1 !";
     break;
 
   case Codec::h265:
@@ -190,11 +218,11 @@ void pipeline_build_video_encoder()
   } 
 
     app.pipeline_str +=
-      fmt::format("queue ! nvh264enc rc-mode=cbr-hq bitrate={} gop-size=120 preset=hq bframes=2 ! ", config.reencode_bitrate);
+      fmt::format("queue ! nvcudah264enc rate-control=cbr tune=low-latency bitrate={} gop-size=120 preset=7 ! ", config.reencode_bitrate);
   
   app.pipeline_str +=
-      "video/x-h264,framerate=60/1,profile=high ! h264parse config-interval=-1 ! outq.sink_0 "
-      "outq.src_0 ! mux.";
+      "outq.sink_0 "
+      "outq.src_0 ! vtee.";
 }
 
 void build_pipeline()
@@ -249,6 +277,7 @@ void start_gstreamer()
   parse_pipeline();
   
   log("Playing pipeline.");
+  gst_debug_bin_to_dot_file(GST_BIN(app.datasrc_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "preplay.dot");
   gst_element_set_state(app.datasrc_pipeline, GST_STATE_PLAYING);
 
   app.gstreamer_bus_future = std::async(std::launch::async, gstreamer_bus_loop);
@@ -260,6 +289,7 @@ void stop_gstreamer()
   gst_object_unref(GST_OBJECT(app.datasrc_pipeline));
   gst_object_unref(app.bus);
   log("Stopping pipeline.");
+  gst_debug_bin_to_dot_file(GST_BIN(app.datasrc_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "stop.dot");
 
   std::future_status status;
 
@@ -275,7 +305,7 @@ void stop_gstreamer()
   }
 }
 
-void start_rist(string rist_input_url, string rist_output_url, int rist_streams)
+void start_rist(string rist_input_url, string rist_output_url)
 {
 
       app.rist_receive_future = std::async(std::launch::async, rist_receiver::run_rist_receiver,
@@ -354,13 +384,13 @@ void handle_gstreamer_message(GstMessage* message)
 
 void rpc_call_start(RpcData data)
 {
-  log("Start Requested for destination " + data.rtmp_address);
+  log("Start Requested.");
 
-  config.stream_output_address.fromString(data.rtmp_address);
   config.streamid = data.rtmp_key;
   config.codec = static_cast<Codec>(data.codec);
   config.upscale = data.upscale;
   config.reencode_bitrate = data.reencode_bitrate;
+  config.stream_destinations = data.stream_destinations;
 
   Url url{ fmt::format("rist://{}", data.rist_output_address) };
 
