@@ -146,7 +146,7 @@ void pipeline_build_sink()
     log(element[0]);
     Url url{ element[0] };
     auto streamKey = element[1];
-+
+
     if (url.getScheme() == "srt")
     {
       hasTS = true;
@@ -171,7 +171,7 @@ void pipeline_build_sink()
 
   if (hasFLV)
   {
-    app.pipeline_str += "h264parse config-interval=-1 name=flvmux ! video/x-h264,framerate=60/1,profile=high,stream-format=avc ! flvmux streamable=true ! tee name=flvtee vtee. ! queue ! flvmux. atee. ! queue ! flvmux.  ";
+    app.pipeline_str += "h264parse config-interval=-1 name=flvmuxvideo ! video/x-h264,framerate=60/1,profile=high,stream-format=avc ! flvmux streamable=true name=flvmuxaudio ! tee name=flvtee vtee. ! queue ! flvmuxvideo. atee. ! queue ! flvmuxaudio.audio  ";
   }
 }
   
@@ -218,7 +218,7 @@ void pipeline_build_video_encoder()
   } 
 
     app.pipeline_str +=
-      fmt::format("queue ! nvh264enc rc-mode=cbr-hq bitrate={} gop-size=120 preset=hq bframes=2 ! ", config.reencode_bitrate);
+      fmt::format("queue ! nvcudah264enc rate-control=cbr tune=low-latency bitrate={} gop-size=120 preset=7 ! ", config.reencode_bitrate);
   
   app.pipeline_str +=
       "outq.sink_0 "
