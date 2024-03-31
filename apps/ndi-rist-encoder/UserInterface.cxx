@@ -11,9 +11,9 @@ Fl_Menu_Item* UserInterface::saveSettingsMenuItem = UserInterface::menu_topMenu 
 Fl_Menu_Item* UserInterface::loadSettingsMenuItem = UserInterface::menu_topMenu + 1;
 
 Fl_Menu_Item UserInterface::menu_codecSelect[] = {
- {"H264", 0,  (Fl_Callback*)select_codec_cb, (void*)(Codec::h264), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"H265", 0,  (Fl_Callback*)select_codec_cb, (void*)(Codec::h265), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"AV1", 0,  (Fl_Callback*)select_codec_cb, (void*)(Codec::av1), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"H264", 0,  (Fl_Callback*)select_codec_cb, (void*)(static_cast<int>(Codec::h264)), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"H265", 0,  (Fl_Callback*)select_codec_cb, (void*)(static_cast<int>(Codec::h265)), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"AV1", 0,  (Fl_Callback*)select_codec_cb, (void*)(static_cast<int>(Codec::av1)), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
  {0,0,0,0,0,0,0,0,0}
 };
 Fl_Menu_Item* UserInterface::h264CodecChoice = UserInterface::menu_codecSelect + 0;
@@ -21,10 +21,10 @@ Fl_Menu_Item* UserInterface::h265CodecChoice = UserInterface::menu_codecSelect +
 Fl_Menu_Item* UserInterface::av1CodecChoice = UserInterface::menu_codecSelect + 2;
 
 Fl_Menu_Item UserInterface::menu_encoderSelect[] = {
- {"Software", 0,  (Fl_Callback*)select_encoder_cb, (void*)(Encoder::software), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"AMD", 0,  (Fl_Callback*)select_encoder_cb, (void*)(Encoder::amd), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"Intel QSV", 0,  (Fl_Callback*)select_encoder_cb, (void*)(Encoder::qsv), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
- {"Nvidia NVENC", 0,  (Fl_Callback*)select_encoder_cb, (void*)(Encoder::nvenc), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"Software", 0,  (Fl_Callback*)select_encoder_cb, (void*)(static_cast<int>(Encoder::software)), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"AMD", 0,  (Fl_Callback*)select_encoder_cb, (void*)(static_cast<int>(Encoder::amd)), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"Intel QSV", 0,  (Fl_Callback*)select_encoder_cb, (void*)(static_cast<int>(Encoder::qsv)), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
+ {"Nvidia NVENC", 0,  (Fl_Callback*)select_encoder_cb, (void*)(static_cast<int>(Encoder::nvenc)), 0, (uchar)FL_NORMAL_LABEL, 0, 14, 0},
  {0,0,0,0,0,0,0,0,0}
 };
 Fl_Menu_Item* UserInterface::softwareEncoderChoice = UserInterface::menu_encoderSelect + 0;
@@ -61,16 +61,10 @@ UserInterface::UserInterface() {
       } // Fl_Input* encoderBitrateInput
       encodeGroup->end();
     } // Fl_Group* encodeGroup
-    { Fl_Group* o = new Fl_Group(385, 41, 225, 194, "Output");
-      { ristAddressInput = new Fl_Input(390, 41, 218, 22, "RIST Address");
+    { Fl_Group* o = new Fl_Group(385, 41, 310, 194, "Output");
+      { ristAddressInput = new Fl_Input(390, 41, 305, 22, "RIST Address");
         ristAddressInput->callback((Fl_Callback*)rist_address_cb);
       } // Fl_Input* ristAddressInput
-      { rtmpAddressInput = new Fl_Input(390, 96, 218, 22, "RTMP Server");
-        rtmpAddressInput->callback((Fl_Callback*)rtmp_address_cb);
-      } // Fl_Input* rtmpAddressInput
-      { rtmpKeyInput = new Fl_Input(390, 124, 218, 22, "RTMP Key");
-        rtmpKeyInput->callback((Fl_Callback*)rtmp_key_cb);
-      } // Fl_Input* rtmpKeyInput
       { useRpcInput = new Fl_Check_Button(390, 181, 25, 25, "Use server remote control.");
         useRpcInput->down_box(FL_DOWN_BOX);
         useRpcInput->callback((Fl_Callback*)use_rpc_cb);
@@ -85,25 +79,28 @@ UserInterface::UserInterface() {
       { ristStreamCount = new Fl_Input(390, 68, 70, 22, "Bonding Streams");
         ristStreamCount->callback((Fl_Callback*)rist_streams_cb);
       } // Fl_Input* ristStreamCount
+      { streamDestinationsButton = new Fl_Button(390, 95, 215, 25, "Stream Destinations");
+        streamDestinationsButton->callback((Fl_Callback*)streamDestinationsButton_cb);
+      } // Fl_Button* streamDestinationsButton
       o->end();
     } // Fl_Group* o
-    { Fl_Group* o = new Fl_Group(735, 41, 95, 149, "RIST Settings");
-      { ristBandwidthInput = new Fl_Input(735, 41, 92, 22, "Bandwidth");
+    { Fl_Group* o = new Fl_Group(852, 41, 95, 149, "RIST Settings");
+      { ristBandwidthInput = new Fl_Input(852, 41, 92, 22, "Bandwidth");
         ristBandwidthInput->callback((Fl_Callback*)rist_bandwidth_cb);
       } // Fl_Input* ristBandwidthInput
-      { ristBufferMinInput = new Fl_Input(735, 66, 92, 22, "Buffer Min");
+      { ristBufferMinInput = new Fl_Input(852, 66, 92, 22, "Buffer Min");
         ristBufferMinInput->callback((Fl_Callback*)rist_buffer_min_cb);
       } // Fl_Input* ristBufferMinInput
-      { ristBufferMaxInput = new Fl_Input(735, 91, 92, 22, "Buffer Max");
+      { ristBufferMaxInput = new Fl_Input(852, 91, 92, 22, "Buffer Max");
         ristBufferMaxInput->callback((Fl_Callback*)rist_buffer_max_cb);
       } // Fl_Input* ristBufferMaxInput
-      { ristRttMinInput = new Fl_Input(735, 116, 92, 22, "RTT Min");
+      { ristRttMinInput = new Fl_Input(852, 116, 92, 22, "RTT Min");
         ristRttMinInput->callback((Fl_Callback*)rist_rtt_min_cb);
       } // Fl_Input* ristRttMinInput
-      { ristRttMaxInput = new Fl_Input(735, 141, 92, 22, "RTT Max");
+      { ristRttMaxInput = new Fl_Input(852, 141, 92, 22, "RTT Max");
         ristRttMaxInput->callback((Fl_Callback*)rist_rtt_max_cb);
       } // Fl_Input* ristRttMaxInput
-      { ristReorderBufferInput = new Fl_Input(735, 166, 92, 22, "Reorder Buffer");
+      { ristReorderBufferInput = new Fl_Input(852, 166, 92, 22, "Reorder Buffer");
         ristReorderBufferInput->callback((Fl_Callback*)rist_reorder_buffer_cb);
       } // Fl_Input* ristReorderBufferInput
       o->end();
@@ -115,29 +112,29 @@ UserInterface::UserInterface() {
       btnStopStream->callback((Fl_Callback*)stopStream_cb);
       btnStopStream->deactivate();
     } // Fl_Button* btnStopStream
-    { statsGroup = new Fl_Group(1005, 40, 171, 200, "Stats");
-      { bandwidthOutput = new Fl_Output(1005, 40, 165, 24, "Bandwidth");
+    { statsGroup = new Fl_Group(1122, 40, 171, 200, "Stats");
+      { bandwidthOutput = new Fl_Output(1122, 40, 165, 24, "Bandwidth");
       } // Fl_Output* bandwidthOutput
-      { linkQualityOutput = new Fl_Output(1005, 66, 165, 24, "Link Quality");
+      { linkQualityOutput = new Fl_Output(1122, 66, 165, 24, "Link Quality");
       } // Fl_Output* linkQualityOutput
-      { retransmittedPacketsOutput = new Fl_Output(1005, 91, 165, 24, "Retransmitted Packets");
+      { retransmittedPacketsOutput = new Fl_Output(1122, 91, 165, 24, "Retransmitted Packets");
       } // Fl_Output* retransmittedPacketsOutput
-      { rttOutput = new Fl_Output(1005, 141, 165, 24, "RTT");
+      { rttOutput = new Fl_Output(1122, 141, 165, 24, "RTT");
       } // Fl_Output* rttOutput
-      { totalPacketsOutput = new Fl_Output(1005, 116, 165, 24, "Packets");
+      { totalPacketsOutput = new Fl_Output(1122, 116, 165, 24, "Packets");
       } // Fl_Output* totalPacketsOutput
-      { encodeBitrateOutput = new Fl_Output(1005, 191, 165, 24, "Encode Bitrate");
+      { encodeBitrateOutput = new Fl_Output(1122, 191, 165, 24, "Encode Bitrate");
       } // Fl_Output* encodeBitrateOutput
       statsGroup->end();
     } // Fl_Group* statsGroup
-    { totalStatsGroup = new Fl_Group(1320, 40, 171, 200, "Total Stats");
-      { cumulativeBandwidthOutput = new Fl_Output(1320, 40, 165, 24, "Bandwidth");
+    { totalStatsGroup = new Fl_Group(1437, 40, 171, 200, "Total Stats");
+      { cumulativeBandwidthOutput = new Fl_Output(1437, 40, 165, 24, "Bandwidth");
       } // Fl_Output* cumulativeBandwidthOutput
-      { cumulativeRetransmittedPacketsOutput = new Fl_Output(1320, 91, 165, 24, "Retransmitted Packets");
+      { cumulativeRetransmittedPacketsOutput = new Fl_Output(1437, 91, 165, 24, "Retransmitted Packets");
       } // Fl_Output* cumulativeRetransmittedPacketsOutput
-      { cumulativeTotalPacketsOutput = new Fl_Output(1320, 116, 165, 24, "Packets");
+      { cumulativeTotalPacketsOutput = new Fl_Output(1437, 116, 165, 24, "Packets");
       } // Fl_Output* cumulativeTotalPacketsOutput
-      { cumulativeEncodeBitrateOutput = new Fl_Output(1320, 191, 165, 24, "Encode Bitrate");
+      { cumulativeEncodeBitrateOutput = new Fl_Output(1437, 191, 165, 24, "Encode Bitrate");
       } // Fl_Output* cumulativeEncodeBitrateOutput
       totalStatsGroup->end();
     } // Fl_Group* totalStatsGroup
@@ -148,6 +145,37 @@ UserInterface::UserInterface() {
     mainWindow->end();
     mainWindow->resizable(mainWindow);
   } // Fl_Double_Window* mainWindow
+  { destinationsDialog = new Fl_Window(717, 301, "Stream Destinations");
+    destinationsDialog->user_data((void*)(this));
+    { serverAddressInput = new Fl_Input(120, 25, 200, 25, "Server Address");
+    } // Fl_Input* serverAddressInput
+    { streamKeyInput = new Fl_Input(120, 50, 200, 25, "Stream Key");
+    } // Fl_Input* streamKeyInput
+    { addDestinationButton = new Fl_Button(370, 25, 195, 25, "Add Destination");
+      addDestinationButton->callback((Fl_Callback*)addDestinationButton_cb);
+    } // Fl_Button* addDestinationButton
+    { closeDestinationsButton = new Fl_Button(640, 270, 70, 25, "Close");
+      closeDestinationsButton->callback((Fl_Callback*)closeDestinationsButton_cb);
+    } // Fl_Button* closeDestinationsButton
+    { destinationListBrowser = new Fl_Browser(20, 105, 330, 170);
+      destinationListBrowser->type(2);
+    } // Fl_Browser* destinationListBrowser
+    { editDestinationButton = new Fl_Button(370, 105, 195, 50, "Edit Destination");
+      editDestinationButton->callback((Fl_Callback*)editDestinationButton_cb);
+    } // Fl_Button* editDestinationButton
+    { removeDestinationButton = new Fl_Button(375, 225, 195, 50, "Remove Destination");
+      removeDestinationButton->callback((Fl_Callback*)removeDestinationButton_cb);
+    } // Fl_Button* removeDestinationButton
+    { updateDestinationButton = new Fl_Button(370, 25, 195, 25, "Update Destination");
+      updateDestinationButton->callback((Fl_Callback*)updateDestinationButton_cb);
+      updateDestinationButton->hide();
+    } // Fl_Button* updateDestinationButton
+    { cancelUpdateDestinationButton = new Fl_Button(370, 50, 195, 25, "Cancel Update");
+      cancelUpdateDestinationButton->callback((Fl_Callback*)cancelUpdateDestinationButton_cb);
+      cancelUpdateDestinationButton->hide();
+    } // Fl_Button* cancelUpdateDestinationButton
+    destinationsDialog->end();
+  } // Fl_Window* destinationsDialog
 }
 
 void UserInterface::show(int argc, char **argv) {

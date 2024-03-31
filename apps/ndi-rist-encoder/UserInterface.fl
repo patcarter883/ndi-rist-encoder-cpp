@@ -11,7 +11,7 @@ class UserInterface {open
   } {
     Fl_Window mainWindow {
       label {NDI RIST Encoder} open
-      xywh {152 306 1680 610} type Double resizable visible
+      xywh {68 357 1680 610} type Double resizable visible
     } {
       Fl_Menu_Bar topMenu {open
         xywh {0 0 1680 20}
@@ -28,7 +28,7 @@ class UserInterface {open
         }
       }
       Fl_Group inputGroup {
-        label Input
+        label Input open
         xywh {35 41 235 99}
       } {
         Fl_Choice ndiSourceSelect {
@@ -42,7 +42,7 @@ class UserInterface {open
         }
       }
       Fl_Group encodeGroup {
-        label Encode
+        label Encode open
         xywh {26 154 249 97}
       } {
         Fl_Choice codecSelect {
@@ -51,19 +51,19 @@ class UserInterface {open
         } {
           MenuItem h264CodecChoice {
             label H264
-            user_data {Codec::h264}
+            user_data {static_cast<int>(Codec::h264)} user_data_type long
             callback select_codec_cb
             xywh {0 0 100 20}
           }
           MenuItem h265CodecChoice {
             label H265
-            user_data {Codec::h265}
+            user_data {static_cast<int>(Codec::h265)} user_data_type long
             callback select_codec_cb
             xywh {0 0 100 20}
           }
           MenuItem av1CodecChoice {
             label AV1
-            user_data {Codec::av1}
+            user_data {static_cast<int>(Codec::av1)} user_data_type long
             callback select_codec_cb
             xywh {0 0 100 20}
           }
@@ -74,26 +74,26 @@ class UserInterface {open
         } {
           MenuItem softwareEncoderChoice {
             label Software
-            user_data {Encoder::software}
+            user_data {static_cast<int>(Encoder::software)} user_data_type long
             callback select_encoder_cb
             xywh {10 10 100 20}
           }
           MenuItem amdEncoderChoice {
             label AMD
-            user_data {Encoder::amd}
+            user_data {static_cast<int>(Encoder::amd)} user_data_type long
             callback select_encoder_cb
             xywh {10 10 100 20}
           }
           MenuItem qsvEncoderChoice {
             label {Intel QSV}
-            user_data {Encoder::qsv}
+            user_data {static_cast<int>(Encoder::qsv)} user_data_type long
             callback select_encoder_cb
             xywh {10 10 100 20}
           }
           MenuItem nvencEncoderChoice {
             label {Nvidia NVENC}
-            user_data {Encoder::nvenc}
-            callback select_encoder_cb
+            user_data {static_cast<int>(Encoder::nvenc)} user_data_type long
+            callback select_encoder_cb selected
             xywh {20 20 100 20}
           }
         }
@@ -105,22 +105,12 @@ class UserInterface {open
       }
       Fl_Group {} {
         label Output open
-        xywh {385 41 225 194}
+        xywh {385 41 310 194}
       } {
         Fl_Input ristAddressInput {
           label {RIST Address}
           callback rist_address_cb
-          xywh {390 41 218 22}
-        }
-        Fl_Input rtmpAddressInput {
-          label {RTMP Server}
-          callback rtmp_address_cb
-          xywh {390 96 218 22}
-        }
-        Fl_Input rtmpKeyInput {
-          label {RTMP Key}
-          callback rtmp_key_cb
-          xywh {390 124 218 22}
+          xywh {390 41 305 22}
         }
         Fl_Check_Button useRpcInput {
           label {Use server remote control.}
@@ -142,40 +132,45 @@ class UserInterface {open
           callback rist_streams_cb
           xywh {390 68 70 22}
         }
+        Fl_Button streamDestinationsButton {
+          label {Stream Destinations}
+          callback streamDestinationsButton_cb
+          xywh {390 95 215 25}
+        }
       }
       Fl_Group {} {
         label {RIST Settings}
-        xywh {735 41 95 149}
+        xywh {852 41 95 149}
       } {
         Fl_Input ristBandwidthInput {
           label Bandwidth
           callback rist_bandwidth_cb
-          xywh {735 41 92 22}
+          xywh {852 41 92 22}
         }
         Fl_Input ristBufferMinInput {
           label {Buffer Min}
           callback rist_buffer_min_cb
-          xywh {735 66 92 22}
+          xywh {852 66 92 22}
         }
         Fl_Input ristBufferMaxInput {
           label {Buffer Max}
           callback rist_buffer_max_cb
-          xywh {735 91 92 22}
+          xywh {852 91 92 22}
         }
         Fl_Input ristRttMinInput {
           label {RTT Min}
           callback rist_rtt_min_cb
-          xywh {735 116 92 22}
+          xywh {852 116 92 22}
         }
         Fl_Input ristRttMaxInput {
           label {RTT Max}
           callback rist_rtt_max_cb
-          xywh {735 141 92 22}
+          xywh {852 141 92 22}
         }
         Fl_Input ristReorderBufferInput {
           label {Reorder Buffer}
           callback rist_reorder_buffer_cb
-          xywh {735 166 92 22}
+          xywh {852 166 92 22}
         }
       }
       Fl_Button btnStartStream {
@@ -190,52 +185,52 @@ class UserInterface {open
       }
       Fl_Group statsGroup {
         label Stats open
-        xywh {1005 40 171 200}
+        xywh {1122 40 171 200}
       } {
         Fl_Output bandwidthOutput {
           label Bandwidth
-          xywh {1005 40 165 24}
+          xywh {1122 40 165 24}
         }
         Fl_Output linkQualityOutput {
           label {Link Quality}
-          xywh {1005 66 165 24}
+          xywh {1122 66 165 24}
         }
         Fl_Output retransmittedPacketsOutput {
           label {Retransmitted Packets}
-          xywh {1005 91 165 24}
+          xywh {1122 91 165 24}
         }
         Fl_Output rttOutput {
           label RTT
-          xywh {1005 141 165 24}
+          xywh {1122 141 165 24}
         }
         Fl_Output totalPacketsOutput {
           label Packets
-          xywh {1005 116 165 24}
+          xywh {1122 116 165 24}
         }
         Fl_Output encodeBitrateOutput {
           label {Encode Bitrate}
-          xywh {1005 191 165 24}
+          xywh {1122 191 165 24}
         }
       }
       Fl_Group totalStatsGroup {
         label {Total Stats} open
-        xywh {1320 40 171 200}
+        xywh {1437 40 171 200}
       } {
         Fl_Output cumulativeBandwidthOutput {
           label Bandwidth
-          xywh {1320 40 165 24}
+          xywh {1437 40 165 24}
         }
         Fl_Output cumulativeRetransmittedPacketsOutput {
           label {Retransmitted Packets}
-          xywh {1320 91 165 24}
+          xywh {1437 91 165 24}
         }
         Fl_Output cumulativeTotalPacketsOutput {
           label Packets
-          xywh {1320 116 165 24}
+          xywh {1437 116 165 24}
         }
         Fl_Output cumulativeEncodeBitrateOutput {
-          label {Encode Bitrate} selected
-          xywh {1320 191 165 24}
+          label {Encode Bitrate}
+          xywh {1437 191 165 24}
         }
       }
       Fl_Text_Display logDisplay {
@@ -245,6 +240,52 @@ class UserInterface {open
       Fl_Text_Display ristLogDisplay {
         label {RIST Log}
         xywh {22 442 1638 161}
+      }
+    }
+    Fl_Window destinationsDialog {
+      label {Stream Destinations} open
+      xywh {230 324 717 301} type Single visible
+    } {
+      Fl_Input serverAddressInput {
+        label {Server Address}
+        xywh {120 25 200 25}
+      }
+      Fl_Input streamKeyInput {
+        label {Stream Key}
+        xywh {120 50 200 25}
+      }
+      Fl_Button addDestinationButton {
+        label {Add Destination}
+        callback addDestinationButton_cb
+        xywh {370 25 195 25}
+      }
+      Fl_Button closeDestinationsButton {
+        label Close
+        callback closeDestinationsButton_cb
+        xywh {640 270 70 25}
+      }
+      Fl_Browser destinationListBrowser {
+        xywh {20 105 330 170} type Hold
+      }
+      Fl_Button editDestinationButton {
+        label {Edit Destination}
+        callback editDestinationButton_cb
+        xywh {370 105 195 50}
+      }
+      Fl_Button removeDestinationButton {
+        label {Remove Destination}
+        callback removeDestinationButton_cb
+        xywh {375 225 195 50}
+      }
+      Fl_Button updateDestinationButton {
+        label {Update Destination}
+        callback updateDestinationButton_cb
+        xywh {370 25 195 25} hide
+      }
+      Fl_Button cancelUpdateDestinationButton {
+        label {Cancel Update}
+        callback cancelUpdateDestinationButton_cb
+        xywh {370 50 195 25} hide
       }
     }
   }
