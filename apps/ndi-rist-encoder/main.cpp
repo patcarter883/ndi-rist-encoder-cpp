@@ -524,7 +524,7 @@ void gotRistStatistics(const rist_stats& statistics)
     bitrateDelta = adjBitrate - app.current_bitrate;
   }
 
-  if (bitrateDelta != 0) {
+  if (bitrateDelta != 0 || maxBitrate < app.current_bitrate) {
     int newBitrate =
         std::max(std::min(app.current_bitrate += bitrateDelta / 2, (uint16_t)maxBitrate), static_cast<const uint16_t>(1000));
     app.current_bitrate = newBitrate;
@@ -632,10 +632,6 @@ void rist_reorder_buffer_cb(Fl_Input* o, void* v)
 void encoder_bitrate_cb(Fl_Input* o, void* v)
 {
   config.bitrate = o->value();
-
-  if (app.is_playing) {
-    encoder->set_encode_bitrate(std::stoi(config.bitrate));
-  }
 }
 
 void use_rpc_cb(Fl_Check_Button* o, void* v)
