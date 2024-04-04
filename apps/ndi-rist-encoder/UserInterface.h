@@ -12,18 +12,17 @@ extern void load_settings_cb(Fl_Menu_*, void*);
 #include <FL/Fl_Choice.H>
 #include <FL/Fl_Button.H>
 extern void refreshSources_cb(Fl_Button*, void*);
-extern void select_codec_cb(Fl_Menu_*, Codec);
-extern void select_encoder_cb(Fl_Menu_*, Encoder);
+extern void select_codec_cb(Fl_Menu_*, long);
+extern void select_encoder_cb(Fl_Menu_*, long);
 #include <FL/Fl_Input.H>
 extern void encoder_bitrate_cb(Fl_Input*, void*);
 extern void rist_address_cb(Fl_Input*, void*);
-extern void rtmp_address_cb(Fl_Input*, void*);
-extern void rtmp_key_cb(Fl_Input*, void*);
 #include <FL/Fl_Check_Button.H>
 extern void use_rpc_cb(Fl_Check_Button*, void*);
 extern void upscale_cb(Fl_Check_Button*, void*);
 extern void reencodeBitrate_cb(Fl_Input*, void*);
 extern void rist_streams_cb(Fl_Input*, void*);
+extern void streamDestinationsButton_cb(Fl_Button*, void*);
 extern void rist_bandwidth_cb(Fl_Input*, void*);
 extern void rist_buffer_min_cb(Fl_Input*, void*);
 extern void rist_buffer_max_cb(Fl_Input*, void*);
@@ -34,6 +33,14 @@ extern void startStream_cb(Fl_Button*, void*);
 extern void stopStream_cb(Fl_Button*, void*);
 #include <FL/Fl_Output.H>
 #include <FL/Fl_Text_Display.H>
+#include <FL/Fl_Window.H>
+extern void addDestinationButton_cb(Fl_Button*, void*);
+extern void closeDestinationsButton_cb(Fl_Button*, void*);
+#include <FL/Fl_Browser.H>
+extern void editDestinationButton_cb(Fl_Button*, void*);
+extern void removeDestinationButton_cb(Fl_Button*, void*);
+extern void updateDestinationButton_cb(Fl_Button*, void*);
+extern void cancelUpdateDestinationButton_cb(Fl_Button*, void*);
 
 class UserInterface {
 public:
@@ -60,12 +67,11 @@ public:
   static Fl_Menu_Item *nvencEncoderChoice;
   Fl_Input *encoderBitrateInput;
   Fl_Input *ristAddressInput;
-  Fl_Input *rtmpAddressInput;
-  Fl_Input *rtmpKeyInput;
   Fl_Check_Button *useRpcInput;
   Fl_Check_Button *upscaleInput;
   Fl_Input *reencodeBitrateInput;
   Fl_Input *ristStreamCount;
+  Fl_Button *streamDestinationsButton;
   Fl_Input *ristBandwidthInput;
   Fl_Input *ristBufferMinInput;
   Fl_Input *ristBufferMaxInput;
@@ -88,6 +94,16 @@ public:
   Fl_Output *cumulativeEncodeBitrateOutput;
   Fl_Text_Display *logDisplay;
   Fl_Text_Display *ristLogDisplay;
+  Fl_Window *destinationsDialog;
+  Fl_Input *serverAddressInput;
+  Fl_Input *streamKeyInput;
+  Fl_Button *addDestinationButton;
+  Fl_Button *closeDestinationsButton;
+  Fl_Browser *destinationListBrowser;
+  Fl_Button *editDestinationButton;
+  Fl_Button *removeDestinationButton;
+  Fl_Button *updateDestinationButton;
+  Fl_Button *cancelUpdateDestinationButton;
   void show(int argc, char **argv);
 };
 #endif

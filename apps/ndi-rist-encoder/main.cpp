@@ -5,6 +5,7 @@
 #include <future>
 #include <thread>
 #include <vector>
+#include <numeric>
 
 #include <fstream>
 #include <filesystem>
@@ -59,9 +60,10 @@ struct RpcData
   std::string reencode_bitrate;
   int codec;
   bool upscale;
+  std::vector<std::array<std::string, 2>> stream_destinations;
   MSGPACK_DEFINE_ARRAY(bitrate,
                        rist_output_address,
-                       rist_output_streams
+                       rist_output_streams,
                        rist_output_buffer_min,
                        rist_output_buffer_max,
                        rist_output_rtt_min,
@@ -72,7 +74,8 @@ struct RpcData
                        rtmp_key,
                        reencode_bitrate,
                        codec,
-                       upscale);
+                       upscale,
+                       stream_destinations);
 };
 
 struct App
@@ -97,12 +100,16 @@ struct App
   std::future<void> gstreamer_sink_future;
 };
 
-struct cumulativeStats
+struct CumulativeStats
 {
     std::vector<int> bandwidth = { };
     std::vector<int> retransmittedPackets = { };
     std::vector<int> totalPackets = { };
     std::vector<int> encodeBitrate = { };
+    int bandwidth_avg = 0;
+    int retransmittedPackets_sum = 0;
+    int totalPackets_sum = 0;
+    int encodeBitrate_avg = 0;
 };
 
 namespace nre
@@ -110,6 +117,7 @@ namespace nre
 /* Globals */
 Config config;
 App app;
+CumulativeStats cumulativeStats;
 Encode* encoder = nullptr;
 
 }  // namespace nre
@@ -179,6 +187,17 @@ void readConfig()
         tbl["restream_output"]["rpc_control"].value<int>().value_or(0);
     config.upscale =
         tbl["restream_output"]["upscale"].value<bool>().value_or(false);
+
+    config.stream_destinations.clear();
+
+    tbl["restream_output"]["stream_destinations"].as_array()->for_each([](auto&& elem)
+        {
+            toml::array* arr = elem.as_array();
+            toml::value<std::string>* address = arr->get_as<std::string>(0);
+            toml::value<std::string>* key = arr->get_as<std::string>(1);
+            std::array<std::string, 2> destination{ address->value_or(""), key->value_or("") };
+            config.stream_destinations.push_back(destination);
+        });
   }
   catch (const toml::parse_error& err) {
     
@@ -189,6 +208,13 @@ void writeConfig()
 {
   std::ofstream write_file(pathToConfigFile());
   if (write_file.is_open()) {
+
+      auto streamDestinationsArray = toml::array{};
+
+      for (auto& element : config.stream_destinations) {
+          streamDestinationsArray.emplace_back<toml::array>(element[0], element[1]);
+      }
+
     auto tbl = toml::table {
         {"encode",
          toml::table {{"codec", config.codec},
@@ -204,11 +230,11 @@ void writeConfig()
                       {"reorder_buffer", config.rist_output_reorder_buffer},
                       {"bandwidth", config.rist_output_bandwidth}}},
         {"restream_output",
-         toml::table {{"address", config.rtmp_address},
-                      {"key", config.rtmp_key},
+         toml::table {
                       {"reencode_bitrate", config.reencode_bitrate},
                       {"rpc_control", config.use_rpc_control},
-                      {"upscale", config.upscale}}}};
+                      {"upscale", config.upscale},
+                      {"stream_destinations", streamDestinationsArray}}} };
     write_file << tbl;
     write_file.close();
   }
@@ -231,8 +257,8 @@ void setUiFromConfig(void* v)
   app.ui->useRpcInput->value(config.use_rpc_control);
   app.ui->upscaleInput->value(config.upscale);
   app.ui->reencodeBitrateInput->value(config.reencode_bitrate.c_str());
-  app.ui->rtmpAddressInput->value(config.rtmp_address.c_str());
-  app.ui->rtmpKeyInput->value(config.rtmp_key.c_str());
+  //app.ui->rtmpAddressInput->value(config.rtmp_address.c_str());
+  //app.ui->rtmpKeyInput->value(config.rtmp_key.c_str());
 }
 
 void initUi()
@@ -321,11 +347,12 @@ void startStream()
       rpcData.rist_output_rtt_max = config.rist_output_rtt_max;
       rpcData.rist_output_reorder_buffer = config.rist_output_reorder_buffer;
       rpcData.rist_output_bandwidth = config.rist_output_bandwidth;
-      rpcData.rtmp_address = config.rtmp_address;
-      rpcData.rtmp_key = config.rtmp_key;
+      //rpcData.rtmp_address = config.rtmp_address;
+      //rpcData.rtmp_key = config.rtmp_key;
       rpcData.codec = static_cast<int>(config.codec);
       rpcData.upscale = config.upscale;
       rpcData.reencode_bitrate = config.reencode_bitrate;
+      rpcData.stream_destinations = config.stream_destinations;
 
     try {
         std::future<void> future = std::async(
@@ -434,6 +461,15 @@ void stopStream()
     }
   }
 
+  cumulativeStats.bandwidth = { };
+  cumulativeStats.retransmittedPackets = { };
+  cumulativeStats.totalPackets = { };
+  cumulativeStats.encodeBitrate = { };
+  cumulativeStats.bandwidth_avg = 0;
+  cumulativeStats.retransmittedPackets_sum = 0;
+  cumulativeStats.totalPackets_sum = 0;
+  cumulativeStats.encodeBitrate_avg = 0;
+
   Fl::lock();
   app.ui->btnStartStream->activate();
   Fl::unlock();
@@ -456,6 +492,11 @@ void ristStatistics_cb(void* msgPtr)
   app.ui->encodeBitrateOutput->value(
       std::to_string(app.current_bitrate).c_str());
   delete msgPtr;
+
+  app.ui->cumulativeBandwidthOutput->value(std::to_string(cumulativeStats.bandwidth_avg / 1000).c_str());
+  app.ui->cumulativeEncodeBitrateOutput->value(std::to_string(cumulativeStats.encodeBitrate_avg).c_str());
+  app.ui->cumulativeRetransmittedPacketsOutput->value(std::to_string(cumulativeStats.retransmittedPackets_sum).c_str());
+  app.ui->cumulativeTotalPacketsOutput->value(std::to_string(cumulativeStats.totalPackets_sum).c_str());
   return;
 }
 
@@ -489,6 +530,22 @@ void gotRistStatistics(const rist_stats& statistics)
     app.current_bitrate = newBitrate;
     encoder->set_encode_bitrate(newBitrate);
   }
+
+  cumulativeStats.bandwidth.push_back(statistics.stats.sender_peer.bandwidth);
+  cumulativeStats.encodeBitrate.push_back(app.current_bitrate);
+  cumulativeStats.retransmittedPackets.push_back(statistics.stats.sender_peer.retransmitted);
+  cumulativeStats.totalPackets.push_back(statistics.stats.sender_peer.sent);
+
+  cumulativeStats.bandwidth_avg = std::accumulate(cumulativeStats.bandwidth.begin(), cumulativeStats.bandwidth.end(), 0,
+      [n = 0](auto cma, auto i) mutable {
+          return cma + (i - cma) / ++n;
+      });
+  cumulativeStats.encodeBitrate_avg = std::accumulate(cumulativeStats.encodeBitrate.begin(), cumulativeStats.encodeBitrate.end(), 0,
+      [n = 0](auto cma, auto i) mutable {
+          return cma + (i - cma) / ++n;
+      });
+  cumulativeStats.retransmittedPackets_sum = std::accumulate(cumulativeStats.retransmittedPackets.begin(), cumulativeStats.retransmittedPackets.end(), 0);
+  cumulativeStats.totalPackets_sum = std::accumulate(cumulativeStats.totalPackets.begin(), cumulativeStats.totalPackets.end(), 0);
 
   app.previous_quality = statistics.stats.sender_peer.quality;
 
@@ -525,14 +582,14 @@ void refreshSources_cb(Fl_Button* o, void* v)
   app.ui->btnRefreshSources->activate();
 }
 
-void select_codec_cb(Fl_Menu_* o, Codec v)
+void select_codec_cb(Fl_Menu_* o, long v)
 {
-  config.codec = v;
+  config.codec = static_cast<Codec>(v);
 }
 
-void select_encoder_cb(Fl_Menu_* o, Encoder v)
+void select_encoder_cb(Fl_Menu_* o, long v)
 {
-  config.encoder = v;
+  config.encoder = static_cast<Encoder>(v);
 }
 
 void rist_address_cb(Fl_Input* o, void* v)
@@ -540,14 +597,9 @@ void rist_address_cb(Fl_Input* o, void* v)
   config.rist_output_address = o->value();
 }
 
-void rtmp_address_cb(Fl_Input* o, void* v)
+void rist_streams_cb(Fl_Input* o, void* v)
 {
-  config.rtmp_address = o->value();
-}
-
-void rtmp_key_cb(Fl_Input* o, void* v)
-{
-  config.rtmp_key = o->value();
+    config.rist_output_streams = std::stoi(o->value());
 }
 
 void rist_bandwidth_cb(Fl_Input* o, void* v)
@@ -663,4 +715,93 @@ void addNdiDevice(gpointer devicePtr, gpointer p)
   app.ui->ndiSourceSelect->add(
       newDeviceDisplayName, 0, ndi_source_select_cb, newDeviceDisplayName, 0);
   gst_object_unref(device);
+}
+
+void updateStreamDestinationList()
+{
+    app.ui->destinationListBrowser->clear();
+    for (auto& element : config.stream_destinations) {
+        app.ui->destinationListBrowser->add(element[0].c_str());
+    }
+}
+
+void streamDestinationsButton_cb(Fl_Button*, void*)
+{
+    Fl::lock();
+    updateStreamDestinationList();
+    app.ui->destinationsDialog->show();
+    Fl::unlock();
+    Fl::awake();
+}
+
+void addDestinationButton_cb(Fl_Button*, void*)
+{
+    std::array<std::string, 2> destination { std::string(app.ui->serverAddressInput->value()), std::string(app.ui->streamKeyInput->value()) };
+    config.stream_destinations.push_back(destination);
+    Fl::lock();
+    updateStreamDestinationList();
+    app.ui->serverAddressInput->value("");
+    app.ui->streamKeyInput->value("");
+    Fl::unlock();
+    Fl::awake();
+}
+
+void updateDestinationButton_cb(Fl_Button*, void*)
+{
+    std::array<std::string, 2> destination{ std::string(app.ui->serverAddressInput->value()), std::string(app.ui->streamKeyInput->value()) };
+    config.stream_destinations.at(app.ui->destinationListBrowser->value() - 1) = destination;
+    Fl::lock();
+    updateStreamDestinationList();
+    app.ui->addDestinationButton->show();
+    app.ui->updateDestinationButton->hide();
+    app.ui->cancelUpdateDestinationButton->hide();
+    app.ui->serverAddressInput->value("");
+    app.ui->streamKeyInput->value("");
+    Fl::unlock();
+    Fl::awake();
+}
+
+void closeDestinationsButton_cb(Fl_Button*, void*)
+{
+    Fl::lock();
+    app.ui->destinationsDialog->hide();
+    Fl::unlock();
+    Fl::awake();
+}
+
+void editDestinationButton_cb(Fl_Button*, void*)
+{
+    std::array<std::string, 2> destination = config.stream_destinations.at(app.ui->destinationListBrowser->value() - 1);
+    Fl::lock();
+    app.ui->addDestinationButton->hide();
+    app.ui->updateDestinationButton->show();
+    app.ui->cancelUpdateDestinationButton->show();
+    app.ui->serverAddressInput->value(destination[0].c_str());
+    app.ui->streamKeyInput->value(destination[1].c_str());
+    Fl::unlock();
+    Fl::awake();
+}
+
+void cancelUpdateDestinationButton_cb(Fl_Button*, void*)
+{
+    Fl::lock();
+    app.ui->addDestinationButton->show();
+    app.ui->updateDestinationButton->hide();
+    app.ui->cancelUpdateDestinationButton->hide();
+    app.ui->serverAddressInput->value("");
+    app.ui->streamKeyInput->value("");
+    Fl::unlock();
+    Fl::awake();
+}
+
+
+void removeDestinationButton_cb(Fl_Button*, void*)
+{
+    config.stream_destinations.erase(config.stream_destinations.begin() + (app.ui->destinationListBrowser->value() - 1));
+    Fl::lock();
+    updateStreamDestinationList();
+    app.ui->serverAddressInput->value("");
+    app.ui->streamKeyInput->value("");
+    Fl::unlock();
+    Fl::awake();
 }
