@@ -44,6 +44,10 @@ struct App
   std::future<void> gstreamer_bus_future;
 
   uint16_t udp_internal_port = 7000;
+
+  bool hasTS = false;
+  bool hasFLV = false;
+  bool hasSDP = false;
 };
 
 struct Config
@@ -135,9 +139,6 @@ void log(string message)
 void pipeline_build_sink()
 {
 
-  bool hasTS = false;
-  bool hasFLV = false;
-
   log("Building pipeline sinks.");
 
   app.pipeline_str += "tee name=vtee  tee name=atee  multiqueue name=outq  ";
@@ -149,29 +150,32 @@ void pipeline_build_sink()
 
     if (url.getScheme() == "srt")
     {
-      hasTS = true;
+      app.hasTS = true;
 
       app.pipeline_str += fmt::format(
         "tstee. ! queue ! srtsink uri={} mode=caller wait-for-connection=false streamid={}  ", url.toString(), streamKey);
     }
     else if (url.getScheme() == "rtmp")
     {
-      hasFLV = true;
+      app.hasFLV = true;
 
       app.pipeline_str += fmt::format(
         "flvtee. ! queue ! rtmpsink location='{}/{} live=true'  ", url.toString(), streamKey);
+    } else if (url.getScheme() == "sdp")
+    {
+      app.hasSDP = true;
     }
 
   }
 
-  if (hasTS)
+  if (app.hasTS)
   {
-    app.pipeline_str += "mpegtsmux name=mpegtsmux ! rtpmp2tpay ! tee name=tstee vtee. ! queue ! mpegtsmux. atee. ! queue ! mpegtsmux.  ";
+    app.pipeline_str += "mpegtsmux name=mpegtsmux ! rtpmp2tpay ! tee name=tstee vtee. ! queue ! mpegtsmux. atee. ! queue max-size-time=5000000000 ! mpegtsmux.  ";
   }
 
-  if (hasFLV)
+  if (app.hasFLV)
   {
-    app.pipeline_str += "h264parse config-interval=-1 name=flvmuxvideo ! video/x-h264,framerate=60/1,profile=high,stream-format=avc ! flvmux streamable=true name=flvmuxaudio ! tee name=flvtee vtee. ! queue ! flvmuxvideo. atee. ! queue ! flvmuxaudio.audio  ";
+    app.pipeline_str += "h264parse config-interval=-1 name=flvmuxvideo ! video/x-h264,framerate=60/1,profile=high,stream-format=avc ! flvmux streamable=true name=flvmuxaudio ! tee name=flvtee vtee. ! queue ! flvmuxvideo. atee. ! queue max-size-time=5000000000 ! flvmuxaudio.audio  ";
   }
 }
   
@@ -179,46 +183,81 @@ void pipeline_build_sink()
 void pipeline_build_source()
 {
   app.pipeline_str += fmt::format(
-      " udpsrc port={} do-timestamp=true name=videosrc ! "
-      "rtpjitterbuffer max-ts-offset-adjustment=500 rfc7273-sync=true mode=synced sync-interval=1 add-reference-timestamp-meta=1 ! rtpmp2tdepay ! tsparse ! tsdemux name=demux ", app.udp_internal_port);
+      " rtpbin buffer-mode=synced do-retransmission=true do-lost=true ntp-sync=true ntp-time-source=ntp rfc7273-sync=true update-ntp64-header-ext=true name=recvrtpbin udpsrc port={} ! application/x-rtp,media=video,encoding-name=MP2T,clock-rate=90000, payload=33 ! recvrtpbin.recv_rtp_sink_0 recvrtpbin. ! rtpmp2tdepay ! "
+      " tsparse ! tsdemux name=demux ", app.udp_internal_port, app.udp_internal_port);
 }
 
 void pipeline_build_audio_remux()
 {
   app.pipeline_str +=
-      " demux. ! aacparse ! queue max-size-time=5000000000 ! outq.sink_1 "
+      " demux. ! aacparse ! outq.sink_1 "
       "outq.src_1 ! atee.";
 }
 
-void pipeline_build_video_decode()
+void pipeline_build_audio_decode()
+{
+  app.pipeline_str +=
+      " demux. ! aacparse ! fdkaacdec ! outq.sink_1 ";
+}
+
+void pipeline_build_video_decode_encode()
 {
   switch (config.codec)
   {
   case Codec::av1:
-    app.pipeline_str += " demux. ! av1parse ! queue ! nvav1dec ! capssetter caps=video/x-raw(memory:CUDAMemory),framerate=60/1 !";
+    app.pipeline_str += " demux. ! av1parse ! nvav1dec ! ";
     break;
 
   case Codec::h265:
-    app.pipeline_str += " demux. ! h265parse ! queue ! nvh265dec !";
+    app.pipeline_str += " demux. ! h265parse ! nvh265dec ! ";
     break;
   
   default:
-    app.pipeline_str += " demux. ! h264parse ! queue ! nvh264dec !";
+    app.pipeline_str += " demux. ! h264parse ! nvh264dec ! ";
     break;
   }
-}
 
-void pipeline_build_video_encoder()
-{
   if (config.upscale)
   {
     app.pipeline_str +=
-      " queue ! cudascale ! "
+      " cudascale ! "
       "video/x-raw(memory:CUDAMemory),width=2560,height=1440 ! ";
-  } 
+  } else
+  {
+    app.pipeline_str +=
+      "  cudascale ! "
+      "video/x-raw(memory:CUDAMemory),width=1920,height=1080 ! ";
+  }
+
+  app.pipeline_str +=
+      fmt::format(" nvcudah264enc rate-control=cbr tune=low-latency bitrate={} gop-size=120 preset=7 ! video/x-h264,profile=high ! h264parse ! ", config.reencode_bitrate);
+
+  app.pipeline_str +=
+      "outq.sink_0 ";
+}
+
+void pipeline_build_sdp_output()
+{
+  app.pipeline_str +=
+  " rtpbin name=rtpbin buffer-mode=synced do-retransmission=true do-lost=true ntp-sync=true ntp-time-source=ntp rfc7273-sync=true update-ntp64-header-ext=true  "
+	"outq.src_0 ! rtph264pay pt=102 mtu=64000 config-interval=-1 ! "
+	"rtpbin.send_rtp_sink_0 rtpbin.send_rtp_src_0 ! queue silent=true ! "
+	"udpsink host=127.0.0.1 port=20000 rtpbin.send_rtcp_src_0 ! "
+	"udpsink host=127.0.0.1 port=20000 sync=false async=false "
+  // "udpsrc port=20001 ! rtpbin.recv_rtcp_sink_0 "
+	"outq.src_1 ! audioconvert ! "
+	"rtpL24pay mtu=64000 ! application/x-rtp, pt=103, payload=103, clock-rate=48000, channels=2 ! "
+	"rtpbin.send_rtp_sink_1 rtpbin.send_rtp_src_1 ! queue silent=true ! "
+	"udpsink host=127.0.0.1 port=20002 rtpbin.send_rtcp_src_1 ! "
+	"udpsink host=127.0.0.1 port=20002 sync=false async=false ";
+  // "udpsrc port=20003 ! rtpbin.recv_rtcp_sink_1 ";
+}
+
+void pipeline_build_video_encoder()
+{ 
 
     app.pipeline_str +=
-      fmt::format("queue ! nvcudah264enc rate-control=cbr tune=low-latency bitrate={} gop-size=120 preset=7 ! ", config.reencode_bitrate);
+      fmt::format(" rawvideo. ! nvcudah264enc rate-control=cbr tune=low-latency bitrate={} gop-size=120 preset=7 ! video/x-h264,profile=high ! h264parse ! ", config.reencode_bitrate);
   
   app.pipeline_str +=
       "outq.sink_0 "
@@ -230,9 +269,15 @@ void build_pipeline()
   app.pipeline_str = "";
   pipeline_build_source();
   pipeline_build_sink();
-  pipeline_build_audio_remux();
-  pipeline_build_video_decode();
-  pipeline_build_video_encoder();
+  pipeline_build_audio_decode();
+  pipeline_build_video_decode_encode();
+
+  if (app.hasSDP)
+  {
+    pipeline_build_sdp_output();
+  }
+  
+  
 }
 
 void parse_pipeline()
@@ -254,18 +299,18 @@ void parse_pipeline()
   app.video_src =
       gst_bin_get_by_name(GST_BIN(app.datasrc_pipeline), "videosrc");
 
-  auto caps = gst_caps_new_simple("application/x-rtp",
-                                  "media",
-                                  G_TYPE_STRING,
-                                  "video",
-                                  "encoding-name",
-                                  G_TYPE_STRING,
-                                  "MP2T",
-                                  "clock-rate",
-                                  G_TYPE_INT,
-                                  90000,
-                                  NULL);
-  g_object_set(app.video_src, "caps", caps, NULL);
+  // auto caps = gst_caps_new_simple("application/x-rtp",
+  //                                 "media",
+  //                                 G_TYPE_STRING,
+  //                                 "video",
+  //                                 "encoding-name",
+  //                                 G_TYPE_STRING,
+  //                                 "MP2T",
+  //                                 "clock-rate",
+  //                                 G_TYPE_INT,
+  //                                 90000,
+  //                                 NULL);
+  // g_object_set(app.video_src, "caps", caps, NULL);
 
   app.bus = gst_element_get_bus(app.datasrc_pipeline);
 }
@@ -277,19 +322,20 @@ void start_gstreamer()
   parse_pipeline();
   
   log("Playing pipeline.");
-  gst_debug_bin_to_dot_file(GST_BIN(app.datasrc_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "preplay.dot");
+  gst_debug_bin_to_dot_file(GST_BIN(app.datasrc_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "preplay");
   gst_element_set_state(app.datasrc_pipeline, GST_STATE_PLAYING);
-
+  gst_debug_bin_to_dot_file(GST_BIN(app.datasrc_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "play");
   app.gstreamer_bus_future = std::async(std::launch::async, gstreamer_bus_loop);
 }
 
 void stop_gstreamer()
 {
+  gst_debug_bin_to_dot_file(GST_BIN(app.datasrc_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "prestop");
   gst_element_set_state(app.datasrc_pipeline, GST_STATE_NULL);
   gst_object_unref(GST_OBJECT(app.datasrc_pipeline));
   gst_object_unref(app.bus);
   log("Stopping pipeline.");
-  gst_debug_bin_to_dot_file(GST_BIN(app.datasrc_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "stop.dot");
+  
 
   std::future_status status;
 
