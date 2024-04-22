@@ -425,9 +425,24 @@ void startStream()
 
 void stopStream()
 {
+    using namespace std::chrono_literals;
+
   app.is_running = false;
   encoder->stop_encode_thread();
-  app.transport_thread_future.wait();
+  std::future_status status;
+
+  if (app.transport_thread_future.valid())
+  {
+      switch (status = app.transport_thread_future.wait_for(5s); status) {
+      case std::future_status::timeout:
+          logAppend("Server stop timed out.");
+          break;
+      case std::future_status::ready:
+          logAppend("Server pipeline stopped.");
+          break;
+      }
+  }
+
   Fl::lock();
   app.ui->btnStopStream->deactivate();
   Fl::unlock();
@@ -444,9 +459,9 @@ void stopStream()
             client.call("stop");
           });
 
-      std::future_status status;
+      
 
-      using namespace std::chrono_literals;
+      
       switch (status = future.wait_for(5s); status) {
         case std::future_status::timeout:
           logAppend("Server stop timed out.");

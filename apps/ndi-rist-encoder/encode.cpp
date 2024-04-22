@@ -13,11 +13,11 @@ void Encode::pipeline_build_sink() {
 }
 
 void Encode::pipeline_build_video_demux() {
-    this->pipeline_str += " demux.video ! queue ! videoconvert !";
+    this->pipeline_str += " demux.video ! queue silent=true ! videoconvert !";
 }
 
 void Encode::pipeline_build_audio_demux() {
-    this->pipeline_str += " demux.audio ! queue ! audioresample ! audioconvert !";
+    this->pipeline_str += " demux.audio ! queue silent=true ! audioresample ! audioconvert !";
 }
 
 void Encode::pipeline_build_audio_encoder() {
@@ -203,11 +203,11 @@ void Encode::pipeline_build_software_av1_encoder() {
 
 
 void Encode::pipeline_build_audio_payloader() {
-    this->pipeline_str += "! queue ! tsmux. ";
+    this->pipeline_str += "! queue silent=true ! tsmux. ";
 }
 
 void Encode::pipeline_build_video_payloader() {
-    this->pipeline_str += "! queue ! tsmux. ";
+    this->pipeline_str += "! queue silent=true ! tsmux. ";
 }
 
 void Encode::build_pipeline() {
@@ -271,15 +271,18 @@ void Encode::stop_encode_thread() {
     
     std::future_status status;
 
-    switch (status = this->encode_thread_future.wait_for(std::chrono::seconds(1)); status)
+    if (this->encode_thread_future.valid())
+    {
+        switch (status = this->encode_thread_future.wait_for(std::chrono::seconds(1)); status)
         {
-            case std::future_status::timeout:
-                this->log_func("Waiting for encoder stop has timed out.");
-                break;
-            case std::future_status::ready:
-                this->log_func("Encoder stopped.");
-                break;
+        case std::future_status::timeout:
+            this->log_func("Waiting for encoder stop has timed out.");
+            break;
+        case std::future_status::ready:
+            this->log_func("Encoder stopped.");
+            break;
         }
+    }
 }
 
 void Encode::handle_gst_message_error(GstMessage* message) {
