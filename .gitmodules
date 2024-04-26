@@ -8,3 +8,7 @@
 [submodule "vcpkg"]
 	path = vcpkg
 	url = https://github.com/Microsoft/vcpkg.git
+[submodule "libs/rist-cpp"]
+	path = libs/rist-cpp
+	url = https://github.com/patcarter883/rist-cpp.git
+	branch = swxtch

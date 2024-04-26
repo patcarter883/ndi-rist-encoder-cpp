@@ -4,12 +4,12 @@ using std::string;
 
 void Encode::pipeline_build_source() {
     this->pipeline_str = fmt::format("ndisrc do-timestamp=true ndi-name=\"{}\" ! ndisrcdemux name=demux ",
-      this->config->ndi_input_name);
+      this->config.ndi_input_name);
 }
 
 void Encode::pipeline_build_sink() {
-    this->pipeline_str += " udpsink host=127.0.0.1 port=6000 sync=true name=video_sink  "
-      "mpegtsmux name=tsmux ! rtpmp2tpay ! video_sink. ";
+    this->pipeline_str += " appsink  name=video_sink  "
+      "mpegtsmux alignment=7 name=tsmux ! video_sink. ";
 }
 
 void Encode::pipeline_build_video_demux() {
@@ -25,7 +25,7 @@ void Encode::pipeline_build_audio_encoder() {
 }
 
 void Encode::pipeline_build_video_encoder() {
-    switch (this->config->encoder)
+    switch (this->config.encoder)
     {
     case Encoder::amd:
         pipeline_build_amd_encoder();
@@ -46,7 +46,7 @@ void Encode::pipeline_build_video_encoder() {
 }
 
 void Encode::pipeline_build_amd_encoder() {
-    switch (this->config->codec)
+    switch (this->config.codec)
         {
         case Codec::h265:
             pipeline_build_amd_h265_encoder();
@@ -63,7 +63,7 @@ void Encode::pipeline_build_amd_encoder() {
 }
 
 void Encode::pipeline_build_qsv_encoder() {
-    switch (this->config->codec)
+    switch (this->config.codec)
         {
         case Codec::h265:
             pipeline_build_qsv_h265_encoder();
@@ -80,7 +80,7 @@ void Encode::pipeline_build_qsv_encoder() {
 }
 
 void Encode::pipeline_build_nvenc_encoder() {
-    switch (this->config->codec)
+    switch (this->config.codec)
         {
         case Codec::h265:
             pipeline_build_nvenc_h265_encoder();
@@ -97,7 +97,7 @@ void Encode::pipeline_build_nvenc_encoder() {
 }
 
 void Encode::pipeline_build_software_encoder() {
-    switch (this->config->codec)
+    switch (this->config.codec)
         {
         case Codec::h265:
             pipeline_build_software_h265_encoder();
@@ -117,14 +117,14 @@ void Encode::pipeline_build_software_encoder() {
 void Encode::pipeline_build_amd_h264_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("amfh264enc name=vidEncoder  bitrate={} rate-control=cbr usage=low-latency preset=quality pre-encode=true pa-hqmb-mode=auto ! video/x-h264,framerate=60/1,profile=high ! h264parse "),
-          this->config->bitrate);
+          this->config.bitrate);
 }
 
 void Encode::pipeline_build_amd_h265_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("amfh265enc name=vidEncoder bitrate={} rate-control=cbr "
           "usage=low-latency preset=quality pre-encode=true pa-hqmb-mode=auto ! video/x-h265,framerate=60/1 ! h265parse "),
-          this->config->bitrate);
+          this->config.bitrate);
 }
 
 void Encode::pipeline_build_amd_av1_encoder() {
@@ -132,7 +132,7 @@ void Encode::pipeline_build_amd_av1_encoder() {
           fmt::runtime("amfav1enc name=vidEncoder bitrate={} rate-control=cbr "
           "usage=low-latency preset=high-quality  pre-encode=true pa-hqmb-mode=auto ! video/x-av1,framerate=60/1 "
           "! av1parse "),
-          this->config->bitrate);
+          this->config.bitrate);
 }
 
 
@@ -140,21 +140,21 @@ void Encode::pipeline_build_qsv_h264_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("qsvh264enc name=vidEncoder  bitrate={} rate-control=cbr "
           "target-usage=1 ! video/x-h264,framerate=60/1  ! h264parse "),
-          this->config->bitrate);
+          this->config.bitrate);
 }
 
 void Encode::pipeline_build_qsv_h265_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("qsvh265enc name=vidEncoder bitrate={} rate-control=cbr "
           "target-usage=1 ! video/x-h265,framerate=60/1  ! h265parse "),
-          this->config->bitrate);
+          this->config.bitrate);
 }
 
 void Encode::pipeline_build_qsv_av1_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("qsvav1enc name=vidEncoder bitrate={} rate-control=cbr "
           "target-usage=1 gop-size=120 ! video/x-av1,framerate=60/1 ! av1parse "),
-          this->config->bitrate);
+          this->config.bitrate);
 }
 
 
@@ -162,21 +162,21 @@ void Encode::pipeline_build_nvenc_h264_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("nvh264enc name=vidEncoder bitrate={} rc-mode=cbr-hq "
           "preset=low-latency-hq ! h264parse "),
-          this->config->bitrate);
+          this->config.bitrate);
 }
 
 void Encode::pipeline_build_nvenc_h265_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("nvh265enc name=vidEncoder bitrate={} rc-mode=cbr-hq "
           "preset=low-latency-hq ! h265parse "),
-          this->config->bitrate);
+          this->config.bitrate);
 }
 
 void Encode::pipeline_build_nvenc_av1_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("nvav1enc name=vidEncoder bitrate={} rc-mode=cbr-hq "
           "preset=low-latency-hq ! av1parse "),
-          this->config->bitrate);
+          this->config.bitrate);
 }
 
 
@@ -184,21 +184,21 @@ void Encode::pipeline_build_software_h264_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("x264enc name=vidEncoder speed-preset=fast tune=zerolatency "
           "bitrate={} ! h264parse "),
-          this->config->bitrate);
+          this->config.bitrate);
 }
 
 void Encode::pipeline_build_software_h265_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("x265enc name=vidEncoder bitrate={} "
           "speed-preset=fast tune=zerolatency ! h265parse "),
-          this->config->bitrate);
+          this->config.bitrate);
 }
 
 void Encode::pipeline_build_software_av1_encoder() {
     this->pipeline_str += fmt::format(
           fmt::runtime("rav1enc name=vidEncoder bitrate={} speed-preset=8 tile-cols=2 "
           "tile-rows=2 ! av1parse "),
-          this->config->bitrate);
+          this->config.bitrate);
 }
 
 
@@ -249,21 +249,21 @@ void Encode::play_pipeline() {
     GstMessage *msg = gst_bus_timed_pop (this->bus, -1);
     this->handle_gstreamer_message(msg);
     gst_message_unref(msg);
-  } while (this->is_playing);
+  } while (this->is_running);
 }
 
 void Encode::run_encode_thread() {
     this->build_pipeline();
     this->parse_pipeline();
-    this->is_eos = FALSE;
-    this->is_playing = true;
+    this->is_eos = false;
+    this->is_running = true;
     this->log_func("Playing pipeline.\n");
     gst_element_set_state(this->datasrc_pipeline, GST_STATE_PLAYING);
     this->encode_thread_future = std::async(std::launch::async, &Encode::play_pipeline, this);
 }
 
 void Encode::stop_encode_thread() {
-    this->is_playing = false;
+    this->is_running = false;
     gst_element_set_state(this->datasrc_pipeline, GST_STATE_NULL);
     gst_object_unref(GST_OBJECT(this->datasrc_pipeline));
     gst_object_unref(this->bus);
@@ -297,12 +297,12 @@ void Encode::handle_gst_message_error(GstMessage* message) {
                             debug_info ? debug_info : "none"));
     g_clear_error(&err);
     g_free(debug_info);
-    this->is_playing = false;
+    this->is_running = false;
 }
 
 void Encode::handle_gst_message_eos(GstMessage* message) {
     this->log_func("\nReceived EOS from pipeline...\n");
-    this->is_playing = false;
+    this->is_running = false;
 }
 
 void Encode::handle_gstreamer_message(GstMessage* message)

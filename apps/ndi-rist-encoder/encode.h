@@ -14,23 +14,28 @@
 class Encode
 {
 public:
-  Config* config;
-  std::atomic_bool is_playing;
-  std::atomic_bool is_running;
-  std::atomic_bool is_eos;
+  const Config& config;
+  std::atomic_bool& is_running;
+  std::atomic_bool& is_eos;
   std::future<void> encode_thread_future;
-  std::function<void(std::string logMessage)> log_func;
+  void (*log_func)(std::string logMessage);
+  GstElement* video_sink = nullptr;
   void run_encode_thread();
   void stop_encode_thread();
   BufferDataStruct pull_buffer();
   void set_encode_bitrate(int newBitrate);
-  Encode(Config* config) { this->config = config; }
+  Encode(Config& config, std::atomic_bool& is_running, std::atomic_bool& is_eos, void (*log_func)(std::string logMessage)) :
+	  config{ config },
+	  is_running{ is_running },
+	  is_eos{ is_eos },
+	  log_func{ log_func }
+  {}
 
 private:
   std::string pipeline_str;
-  GstElement* datasrc_pipeline;
-  GstElement *video_sink, *video_encoder;
-  GstBus* bus;
+  GstElement* datasrc_pipeline = nullptr;
+  GstElement* video_encoder = nullptr;
+  GstBus* bus = nullptr;
   void build_pipeline();
   void pipeline_build_source();
   void pipeline_build_sink();

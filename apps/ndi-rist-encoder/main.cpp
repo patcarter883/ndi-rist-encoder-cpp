@@ -17,7 +17,6 @@
 #include <gst/app/gstappsink.h>
 #include <gst/gst.h>
 #include <atomic>
-#include <ristsender.h>
 #include "Url.h"
 #include "UserInterface.cxx"
 #include "UserInterface.h"
@@ -27,6 +26,7 @@ using homer6::Url;
 using std::string;
 
 #include "encode.h"
+#include "transport.h"
 #include <toml++/toml.h>
 
 void startStream();
@@ -96,7 +96,7 @@ struct App
   double previous_quality;
   uint16_t rpc_port = 5999;
 
-  std::future<int> transport_thread_future;
+  std::future<void> transport_thread_future;
   std::future<void> gstreamer_sink_future;
 };
 
@@ -118,7 +118,10 @@ namespace nre
 Config config;
 App app;
 CumulativeStats cumulativeStats;
-Encode* encoder = nullptr;
+//std::unique_ptr<Encode, std::default_delete<Encode>> encoder;
+//std::unique_ptr<Transport, std::default_delete<Transport>> transporter;
+Encode* encoder;
+Transport* transporter;
 
 }  // namespace nre
 
@@ -331,8 +334,8 @@ int ristLog(void* arg, enum rist_log_level, const char* msg)
 
 void startStream()
 {
- encoder = new Encode(&config);
- encoder->log_func = logAppend;
+ encoder = new Encode(config, app.is_running, app.is_eos, logAppend);
+ transporter = new Transport(config, &gotRistStatistics, ristLog);
   app.current_bitrate = std::stoi(config.bitrate);
   Url url{ fmt::format("rist://{}", config.rist_output_address) };
   if (config.use_rpc_control) {
@@ -380,41 +383,31 @@ void startStream()
     }
   }
   app.is_running = true;
+  transporter->setup_rist_sender();
   encoder->run_encode_thread();
 
-
-  string rist_output_url;
-
-      for (int i = 0; i < config.rist_output_streams; i = i + 1)
-      {
-          rist_output_url.append(fmt::format(
-              "rist://"
-              "{}:{}?bandwidth={}buffer-min={}&buffer-max={}&rtt-min={}&rtt-max={}&"
-              "reorder-buffer={}",
-              url.getHost(),
-              url.getPort() + (2 * i),
-              config.rist_output_bandwidth,
-              config.rist_output_buffer_min,
-              config.rist_output_buffer_max,
-              config.rist_output_rtt_min,
-              config.rist_output_rtt_max,
-              config.rist_output_reorder_buffer));
-
-          if (config.rist_output_streams > 1 && i < (config.rist_output_streams - 1))
-          {
-              rist_output_url.append(",");
-          }
-      }
-
-
-      string rist_input_url = "rtp://@127.0.0.1:6000";
   app.transport_thread_future = std::async(std::launch::async,
-                                           rist_sender::run_rist_sender,
-                                           rist_input_url,
-                                           rist_output_url,
-                                           &ristLog,
-                                           &gotRistStatistics,
-                                           &app.is_running);
+      [&]() {
+          GstSample* sample;
+          GstBuffer* buffer;
+
+          while (app.is_running) {
+              sample = gst_app_sink_pull_sample(GST_APP_SINK(encoder->video_sink));
+                  buffer = gst_sample_get_buffer(sample);
+                  if (buffer) {
+                      GstMapInfo info;
+                      gst_buffer_map(buffer, &info, GST_MAP_READ);
+                      gsize& buf_size = info.size;
+                      guint8*& buf_data = info.data;
+
+                      transporter->send_buffer(buf_data, buf_size);
+                  }
+
+              gst_sample_unref(sample);
+          }
+          app.is_running = false;
+      }
+  );
 
   Fl::lock();
   app.ui->btnStartStream->deactivate();
@@ -446,7 +439,6 @@ void stopStream()
   Fl::lock();
   app.ui->btnStopStream->deactivate();
   Fl::unlock();
-  delete encoder;
 
   if (config.use_rpc_control) {
     try {

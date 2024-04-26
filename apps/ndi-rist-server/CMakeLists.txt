@@ -21,6 +21,6 @@ ELSE()
     PkgConfig::gstreamer-video)
 ENDIF()
 
-target_link_libraries(ndi-rist-server PRIVATE rpc fmt::fmt ristreceiver)
+target_link_libraries(ndi-rist-server PRIVATE rpc fmt::fmt ristnet)
 
-add_dependencies(ndi-rist-server rpc ristreceiver)
+add_dependencies(ndi-rist-server rpc ristnet)

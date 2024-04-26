@@ -32,9 +32,15 @@ ENDIF()
 
 CPMAddPackage("gh:rpclib/rpclib#v2.3.0")
 find_package(fmt CONFIG REQUIRED)
-add_subdirectory(libs)
+add_subdirectory(libs/rist-cpp)
 add_subdirectory(apps/ndi-rist-encoder)
 add_subdirectory(apps/ndi-rist-server)
+
+target_include_directories(ndi-rist-encoder PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/libs/rist-cpp/)
+
+target_link_libraries(ndi-rist-encoder PRIVATE ristnet) 
+
+
 
 
 # ---- Install rules ----
